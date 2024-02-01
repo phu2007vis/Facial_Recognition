@@ -1,153 +1,89 @@
-import dlib
-from profile_detection import f_detector
+import pickle
+import os
+import glob
 from emotion_detection import f_emotion_detection
 import cv2
-import numpy as np
-import dlib         # 人脸识别的库 Dlib
-import cv2          # 图像处理的库 OpenCV
-from face_recognition_models import pose_predictor_model_location,face_recognition_model_location
-face_detector            = dlib.get_frontal_face_detector()
-profile_detector         = f_detector.detect_face_orientation()
+import numpy as np       
+from anti_spoof_predict import model_test,spoof_predict
+from utility import xywh2xyxy
 emotion_detector         = f_emotion_detection.predict_emotions()
-predictor = dlib.shape_predictor(pose_predictor_model_location())
-face_reco_model = dlib.face_recognition_model_v1(face_recognition_model_location())
+from facenet_pytorch import InceptionResnetV1
+import torch
+resnet = InceptionResnetV1(pretrained='casia-webface').eval()
 
-def face_encode(img_rd,face):
-
-    x1,y1,x2,y2 = face
-    assert(x1<x2 and y1 <y2)
-    face_shape = predictor(img_rd,dlib.rectangle(left = x1,right = x2,top = y1,bottom = y2))
-    face_desc = face_reco_model.compute_face_descriptor(img_rd, face_shape)
-    return np.asarray(face_desc)
-    
-
-def get_areas(boxes):
-    areas = []
-    for box in boxes:
-        x0,y0,x1,y1 = box
-        area = (y1-y0)*(x1-x0)
-        areas.append(area)
-    return areas
-
-def convert_rectangles2array(rectangles,image):
-    '''
-    output : [[y1,x1,y2,x2]*num_faces]
-    '''
-    res = np.array([])
-    for box in rectangles:
-        [x0,y0,x1,y1] = max(0, box.left()), max(0, box.top()), min(box.right(), image.shape[1]), min(box.bottom(), image.shape[0])
-        new_box = np.array([x0,y0,x1,y1])
-        if res.size == 0:
-            res = np.expand_dims(new_box,axis=0)
-        else:
-            res = np.vstack((res,new_box))
-    return res
-
-
-def get_face(image):
-    '''
-    image : rgb (w,h,3)
-    '''
-    if len(image.shape)==3:
-        image  = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
-    rectangles = face_detector(image, 0)
-    boxes = convert_rectangles2array(rectangles,image)
-    return boxes
-
+def fixed_image_standardization(image_tensor):
+    processed_tensor = (image_tensor - 127.5) / 128.0
+    return processed_tensor
+def preprocessing_face(face:np.array):
+    face = cv2.resize(face,(160,160))
+    img_tensor = torch.from_numpy(face.transpose((2, 0, 1))).float()
+    img_tensor = fixed_image_standardization(img_tensor)
+    return img_tensor
 def draw_faces(image,boxes):
     for box in boxes:
         x1,y1,x2,y2 = box
         image = cv2.rectangle(image, (x1,y1), (x2,y2), (0,255,0), 1)
     return image
-
+def face_encode(image,box):
+    x1,y1,x2,y2 = box
+    face = image[y1:y2,x1:x2,:]
+    face_tensor = preprocessing_face(face)
+    with torch.no_grad():
+        img_embedding = resnet(face_tensor.unsqueeze(0))
+    return np.array(img_embedding[0])
+    
 def put_text(im,text,y = 0,color = (0,0,255)):
-
-    #im = cv2.flip(im, 1)
     cv2.putText(im,text,(10,50+y),cv2.FONT_HERSHEY_COMPLEX,1,color,2)
     return im
 
-def detect_liveness(im):
-    # preprocesar data
-    gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-    boxes_face = get_face(gray)
+name_real_or_fake = ['fake','real','fake']
+def detect_liveness(im,face_vetification = None):
+    boxes_face = xywh2xyxy(model_test[0].get_bbox(im))
 
+    names = []
+    emotion = []
+    label = []
     if len(boxes_face)!=0:
-        
         boxes_face = [list(boxes_face[0])]
+        label,value = spoof_predict(im,boxes_face)
+        label = [name_real_or_fake[label]]
+        if face_vetification:
+            names,_ =  face_vetification.check_face(im,boxes_face,draw_image = True)
+            
+    im = draw_faces(im,boxes_face)
+        
+        
 
-        # -------------------------------------- emotion_detection ---------------------------------------
-        '''
-        input:
-            - imagen RGB
-            - boxes_face: [x1,y1,x2,y2]
-        output:
-            - status: "ok"
-            - emotion: ['happy'] or ['neutral'] ...
-            - box: [[579, 170, 693, 284]]
-        '''
-        _,emotion = emotion_detector.get_emotion(im,boxes_face)
-        # -------------------------------------- blink_detection ---------------------------------------
-        '''
-        input:
-            - imagen gray
-            - rectangles
-        output:
-            - status: "ok"
-            - COUNTER: # frames consecutivos por debajo del umbral
-            - TOTAL: # de parpadeos
-        '''
-        # COUNTER,TOTAL = blink_detector.eye_blink(gray,rectangles,COUNTER,TOTAL)
-    else:
-        boxes_face = []
-        emotion = []
-
-    # -------------------------------------- profile_detection ---------------------------------------
-    '''
-    input:
-        - imagen gray
-    output:
-        - status: "ok"
-        - profile: ["right"] or ["left"]
-        - box: [[579, 170, 693, 284]]
-    '''
-    box_orientation, orientation = profile_detector.face_orientation(gray)
-
-    # -------------------------------------- output ---------------------------------------
-
-
+    _,emotion = emotion_detector.get_emotion(im,boxes_face)
     output = {
         'emotion': emotion,
-        'orientation': orientation,
         'boxes_faces': boxes_face,
-        
+        'label': label,
+        'names': names
     }
-    # for i,key in enumerate(output.keys()):
-    #     value = output[key]
-    #     if len(value)==0:
-    #         text = key+": "+"None"
-    #     else:
-    #         text = key+": "+str(value[0])
+    for i,key in enumerate(output.keys()):
+        value = output[key]
+        if len(value)==0:
+            text = key+": "+"None"
+        else:
+            text = key+": "+str(value[0])
 
-    #     im = put_text(im,text,i*30)
-    return output
+        im = put_text(im,text,i*30)
+    return im,output
 
 def read_yaml(yaml_path):
     import yaml
-
-    # Load YAML from a file
     with open(yaml_path, 'r') as file:
         data = yaml.load(file, Loader=yaml.FullLoader)
     return data
-import pickle
-import os
-import glob
+
 class FacialVertification:
     def __init__(self,encode_data_path = r"D:\face_liveness_detection-Anti-spoofing\data.pkl",path_data_base  = r"D:\face_liveness_detection-Anti-spoofing\DataBase"):
 
         self.encode_data_path = encode_data_path
         self.path_data_base = path_data_base
         self.names,self.encodes = self._load_data_face(encode_data_path)
-        # self.gen_data_encode()
+        self.gen_data_encode()
 
     def _load_data_face(self,face_data_path ):
 
@@ -158,32 +94,22 @@ class FacialVertification:
 
     def gen_data_encode(self):
         
-
         self.names = []
         self.encodes = []
         for path_dir in glob.glob(os.path.join(self.path_data_base,"*")):
-            
             name = os.path.basename(path_dir)
-            self.names += [name] * len(glob.glob(os.path.join(path_dir , "*")))
             for image_path in glob.glob(os.path.join(path_dir , "*")):
                 print(f"loading file: {image_path}")
                 image = cv2.cvtColor(cv2.imread(image_path),cv2.COLOR_BGR2RGB)
-                gray  = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-                boxes_face = get_face(gray)
-                boxes_face = [list(boxes_face[0])]
-                self.encodes.append(face_encode(image,boxes_face[0]))
+                face = model_test[0].get_bbox(image)
+                if len(face) !=1:
+                    print(f"File {image_path} is can't use to recognize ")
+                    continue
+                box  = xywh2xyxy(face)[0]
+                self.names.append(name)
+                self.encodes.append(face_encode(image,box))
+        self.encodes = np.array(self.encodes)
         self.save_data_pkl()
-
-    # def add_new_image(self,frame,name : str):
-    #     locations = face_recognition.face_locations(frame)
-    #     if len(locations)==1:
-    #         face_encoding = face_recognition.face_encodings(frame,known_face_locations=locations,num_jitters = 2)[0]
-    #         self.encodes.append(face_encoding)
-    #         self.names.append(name)
-    #         return True
-    #     else:
-    #         return False
-
 
     def save_data_pkl(self,file_path=None):
         if file_path == None:
@@ -195,11 +121,8 @@ class FacialVertification:
 
     def _get_face_encodes(self,image,boxes_face = None):
         if boxes_face == None:
-            gray  = cv2.cvtColor(image,cv2.COLOR_RGB2GRAY)
-            boxes_face = get_face(gray)
-            boxes_face = [list(boxes_face[0])]
-        if len(boxes_face)==4:
-            boxes_face = [boxes_face]
+            pass
+
         encode = face_encode(image,boxes_face[0])
         return boxes_face,[encode]
     def draw_face(self,frame,location,name):
@@ -227,9 +150,10 @@ class FacialVertification:
             return np.empty((0))
 
         return np.linalg.norm(face_encodings - face_to_compare, axis=1)
-    def check_face(self,frame,face_know,draw_image = True,threshold_value = 0.45):
+    def check_face(self,frame,face_know,draw_image = True,threshold_value = 0.8):
         names = []
-        locations,face_encodes = self._get_face_encodes(frame,face_know)
+        frame_copy = cv2.cvtColor(frame.copy(),cv2.COLOR_BGR2RGB)
+        locations,face_encodes = self._get_face_encodes(frame_copy,face_know)
         
         for location, face_encode in zip(locations, face_encodes):
             face_distances = self.face_distance(self.encodes, face_encode)
@@ -243,3 +167,18 @@ class FacialVertification:
                 location = [int(x) for x in location]
                 frame = self.draw_face(frame,location,name)
         return names,frame
+
+
+if __name__ == "__main__":
+    cam = cv2.VideoCapture(0)
+    vertificat = FacialVertification()
+    while True:
+        ret,frame = cam.read()
+        if not ret:
+            break
+        frame,out = detect_liveness(frame,vertificat)
+        cv2.imshow("frame",frame)
+        if cv2.waitKey(10) == ord("q"):
+            cv2.destroyAllWindows()
+            break
+        

@@ -1,4 +1,4 @@
-limit_questions: 6
+limit_questions: 3
 limit_consecutives: 3
 limit_try: 50 
 max_error: 3

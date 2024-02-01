@@ -2,6 +2,7 @@ from phuoc_uitls import *
 import random
 import questions
 from collections import defaultdict
+from src.anti_spoof_predict import spoof_predict
 class SuperDetect:
     def __init__(self,opt_path = r"D:\face_liveness_detection-Anti-spoofing\config.yaml"):
         self.opt = read_yaml(opt_path)
@@ -44,15 +45,18 @@ class SuperDetect:
         return random.sample(self.frames, self.opt['num_faces_check'])
     def face_vertification(self):
         names = defaultdict(int)
+        labels = defaultdict(int)
         for image,box in self.random_select():
+            label,value = spoof_predict(image,box[0])
             image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
             names_detect,image = self.face_verti.check_face(image,box)
+            labels[label]+=1
             for name in names_detect:
                 names[name] += 1  
         self.name = max(names, key=names.get)
+        self.label = max(labels,key=labels.get)
+        print(self.label)
         
-
-    
     def detect_liveness(self):
         self.reset()
         while self.counter_ok_questions <= self.opt['limit_questions']:
@@ -69,19 +73,36 @@ class SuperDetect:
         return True
 
 model = SuperDetect()
-oke  = model.detect_liveness()
-import time
-t = time.time()
-model.face_vertification()
-print(time.time()-t)
+
 while True:
-    text = f"welcome {model.name}" if oke else "fail"
-    frame = model.cam.read()[1]
-    color = (0,255,0) if oke else (0,0,255)
-    frame = put_text(frame,text = text,color=color)
-    cv2.imshow("liveness_detection",frame)
-    if cv2.waitKey(8) == ord("q"):
-        break
+    oke  = model.detect_liveness()
+    if oke :
+        model.face_vertification()
+        if model.name == 'unknow':
+            color =  (0,0,255)
+            text2  = f"You not registry"
+        elif model.label!=1:
+            color =  (0,0,255)
+            text2  = f"You are cheating"
+        else:
+            color = (0,255,0)
+            text2 = f"Welcome {model.name}"
+          
+    else:
+        model.name = None
+        text2 = None
+        color = (0,0,255)
+
+    while True:
+        text1 = f"Successful liveness" if oke else "Fail liveness"
+        frame = model.cam.read()[1]
+        frame = put_text(frame,text = text1,color=color)
+        if text2:
+            frame = put_text(frame,text = text2,color=color,y = 50)
+        cv2.imshow("liveness_detection",frame)
+        if cv2.waitKey(8) == ord("q"):
+            break
+    
     
 cv2.destroyAllWindows()
                 
