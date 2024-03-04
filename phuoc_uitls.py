@@ -9,37 +9,45 @@ from utility import xywh2xyxy
 emotion_detector         = f_emotion_detection.predict_emotions()
 from facenet_pytorch import InceptionResnetV1
 import torch
+import time
 resnet = InceptionResnetV1(pretrained='casia-webface').eval()
+def get_face(image,box):
+    x1,y1,x2,y2 = box
+    return image[y1:y2,x1:x2,:]
 
 def fixed_image_standardization(image_tensor):
     processed_tensor = (image_tensor - 127.5) / 128.0
     return processed_tensor
+
 def preprocessing_face(face:np.array):
     face = cv2.resize(face,(160,160))
     img_tensor = torch.from_numpy(face.transpose((2, 0, 1))).float()
     img_tensor = fixed_image_standardization(img_tensor)
     return img_tensor
-def draw_faces(image,boxes):
+
+def draw_faces(image,boxes,color =  (0,255,0)):
     for box in boxes:
         x1,y1,x2,y2 = box
-        image = cv2.rectangle(image, (x1,y1), (x2,y2), (0,255,0), 1)
+        image = cv2.rectangle(image, (x1,y1), (x2,y2), color, 1)
     return image
-def face_encode(image,box):
+def face_encode(image,box,mode = "rgb"):
+    if mode == "bgr":
+        image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
+    #image rgb mode
     x1,y1,x2,y2 = box
     face = image[y1:y2,x1:x2,:]
     face_tensor = preprocessing_face(face)
     with torch.no_grad():
         img_embedding = resnet(face_tensor.unsqueeze(0))
     return np.array(img_embedding[0])
-    
+  
 def put_text(im,text,y = 0,color = (0,0,255)):
     cv2.putText(im,text,(10,50+y),cv2.FONT_HERSHEY_COMPLEX,1,color,2)
     return im
 
 name_real_or_fake = ['fake','real','fake']
-def detect_liveness(im,face_vetification = None):
+def detect_liveness(im,face_vetification = None,visulize = False):
     boxes_face = xywh2xyxy(model_test[0].get_bbox(im))
-
     names = []
     emotion = []
     label = []
@@ -49,26 +57,21 @@ def detect_liveness(im,face_vetification = None):
         label = [name_real_or_fake[label]]
         if face_vetification:
             names,_ =  face_vetification.check_face(im,boxes_face,draw_image = True)
-            
-    im = draw_faces(im,boxes_face)
-        
-        
-
-    _,emotion = emotion_detector.get_emotion(im,boxes_face)
+        if visulize:
+            color = (255,0,0) if label[0] == 'real' else (0,0,255)
+            im = draw_faces(im,boxes_face,color)
+            im = put_text(im,label[0],color=color)
+            im = put_text(im,names[0],50)
+    
+    # _,emotion = emotion_detector.get_emotion(im,boxes_face)
+       
+    # {'emotion': ['neutral'], 'boxes_faces': [[143, 150, 350, 358]], 'label': ['real'], 'names': []}
     output = {
         'emotion': emotion,
         'boxes_faces': boxes_face,
         'label': label,
         'names': names
     }
-    for i,key in enumerate(output.keys()):
-        value = output[key]
-        if len(value)==0:
-            text = key+": "+"None"
-        else:
-            text = key+": "+str(value[0])
-
-        im = put_text(im,text,i*30)
     return im,output
 
 def read_yaml(yaml_path):
@@ -82,16 +85,34 @@ class FacialVertification:
 
         self.encode_data_path = encode_data_path
         self.path_data_base = path_data_base
+        
+        if not os.path.exists(encode_data_path):
+            self.gen_data_encode()
         self.names,self.encodes = self._load_data_face(encode_data_path)
-        self.gen_data_encode()
-
     def _load_data_face(self,face_data_path ):
 
         with open(face_data_path, "rb") as f:
             names = pickle.load(f)
             encodes = pickle.load(f)
         return names,encodes
-
+    def register_new_people(self,name:str,encodings):
+        if name in self.names:
+            return "Name is already exists",False
+        encodings = np.array(encodings)
+        assert(len(encodings.shape) == 2)
+        if len(encodings) > 0 :
+            self.names.extend([name]*len(encodings))
+            self.encodes = np.vstack((self.encodes,encodings))
+            self.save_data_pkl()
+            return "Success registry",True
+        return "Camera error",False
+        
+    def remove_face(self,name_remove):
+        idx = [i for i ,name in enumerate(self.names) if name != name_remove]
+        self.names = [self.names[i] for i in idx]
+        self.encodes = self.encodes[idx]
+        self.save_data_pkl()
+        
     def gen_data_encode(self):
         
         self.names = []
@@ -107,7 +128,7 @@ class FacialVertification:
                     continue
                 box  = xywh2xyxy(face)[0]
                 self.names.append(name)
-                self.encodes.append(face_encode(image,box))
+                self.encodes.append(face_encode(image,box,mode = "rgb"))
         self.encodes = np.array(self.encodes)
         self.save_data_pkl()
 
@@ -168,17 +189,23 @@ class FacialVertification:
                 frame = self.draw_face(frame,location,name)
         return names,frame
 
+import cv2
+
+
+  # Example: Draw a white filled circle as a mask
 
 if __name__ == "__main__":
     cam = cv2.VideoCapture(0)
     vertificat = FacialVertification()
+    
     while True:
-        ret,frame = cam.read()
-        if not ret:
+        begint = time.time()
+        # Capture frame-by-frame
+        ret, frame = cam.read()
+        img,_ = detect_liveness(frame,vertificat,visulize=True)
+        cv2.imshow("frame",img)
+        if cv2.waitKey(8)==ord('q'):
             break
-        frame,out = detect_liveness(frame,vertificat)
-        cv2.imshow("frame",frame)
-        if cv2.waitKey(10) == ord("q"):
-            cv2.destroyAllWindows()
-            break
-        
+    cam.release()
+    cv2.destroyAllWindows()
+            

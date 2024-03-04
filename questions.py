@@ -7,6 +7,7 @@ def question_bank(index):
 #  "blink eyes"
 
 def challenge_result(question, out_model):
+    # out_model = out_model[1]
     if question == "smile":
         if len(out_model["emotion"]) == 0:
             challenge = "fail"
@@ -18,7 +19,7 @@ def challenge_result(question, out_model):
     elif question == "nghiem tuc":
         if len(out_model["emotion"]) == 0:
             challenge = "fail"
-        elif out_model["neutral"][0] == "happy": 
+        elif out_model["emotion"][0] == "neutral": 
             challenge = "pass"
         else:
             challenge = "fail"

@@ -1,6 +1,7 @@
 limit_questions: 3
 limit_consecutives: 3
-limit_try: 50 
+limit_try: 30
 max_error: 3
 num_faces_check: 6
 max_frames_save: 12
+num_faces_register: 4
