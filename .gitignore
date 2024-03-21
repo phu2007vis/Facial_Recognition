@@ -1,4 +1,6 @@
 __pycache__
+*.png
 DataBase
+*.jpg
 .idea
 data.pkl
