@@ -3,16 +3,16 @@ import os
 import glob
 import cv2
 import numpy as np       
-from anti_spoof_predict import model_test,spoof_predict
+# from anti_spoof_predict import model_test,spoof_predict
 from utility import xywh2xyxy
-from facenet_pytorch import InceptionResnetV1
-import torch
+# from facenet_pytorch import InceptionResnetV1
+# import torch
 import time
-import yaml
+# import yaml
 import cv2
-resnet = InceptionResnetV1(pretrained='casia-webface').eval()
-with open("config.yaml","r") as f:
-    config = yaml.safe_load(f)
+# resnet = InceptionResnetV1(pretrained='casia-webface').eval()
+# with open("config.yaml","r") as f:
+#     config = yaml.safe_load(f)
 
 def get_face(image,box):
     x1,y1,x2,y2 = box
