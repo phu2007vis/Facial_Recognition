@@ -4,7 +4,7 @@
 # @Company : Minivision
 # @File : anti_spoof_predict.py
 # @Software : PyCharm
-import time
+
 import os
 import cv2
 import math
