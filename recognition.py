@@ -89,9 +89,8 @@ class Recognition:
     
     def from_pkl(self):
         with open(config['data']['data_path'], "rb") as f:
-            names = pickle.load(f)
-            encodes = pickle.load(f)
-        return names,encodes
+            self.names = pickle.load(f)
+            self.encodes = pickle.load(f)
         
     def from_image(self):
         self.names = []

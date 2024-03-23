@@ -1,4 +1,7 @@
-stream_uri: 0
+video_stream:
+  #local it is int value 0 , 1 for index camera webcam
+  type: remote
+  stream_uri: http://192.168.0.100:5000/image_feed
 #dlib or restinet
 type_recognition: dlib
 
@@ -8,8 +11,8 @@ face_recognition:
 face_data_path: data.pkl
 data:
   #from_image,from_pkl
-  load_data_type: from_image
-  data_path: DataBase
+  load_data_type: from_pkl
+  data_path: resources/face_encode_data/dlib.pkl
   save_data: 
     save_type: pkl
     

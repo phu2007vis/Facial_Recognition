@@ -4,3 +4,4 @@ DataBase
 *.jpg
 .idea
 data.pkl
+resources/face_encode_data/*
