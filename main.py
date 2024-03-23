@@ -3,29 +3,30 @@ import os
 import glob
 import cv2
 import numpy as np       
-# from anti_spoof_predict import model_test,spoof_predict
 from utility import xywh2xyxy
-# from facenet_pytorch import InceptionResnetV1
-# import torch
 import time
-# import yaml
-import cv2
-# resnet = InceptionResnetV1(pretrained='casia-webface').eval()
-# with open("config.yaml","r") as f:
-#     config = yaml.safe_load(f)
+import yaml
+
+
+with open("config.yaml","r") as f:
+    config = yaml.safe_load(f)
+if config['type_recognition'] == "dlib":
+    pass
+else:
+    from anti_spoof_predict import model_test,spoof_predict
+    from facenet_pytorch import InceptionResnetV1
+    import torch
+    resnet = InceptionResnetV1(pretrained='casia-webface').eval()
 
 def get_face(image,box):
     x1,y1,x2,y2 = box
     return image[y1:y2,x1:x2,:]
 
-def fixed_image_standardization(image_tensor):
-    processed_tensor = (image_tensor - 127.5) / 128.0
-    return processed_tensor
 
 def preprocessing_face(face:np.array):
     face = cv2.resize(face,(160,160))
     img_tensor = torch.from_numpy(face.transpose((2, 0, 1))).float()
-    img_tensor = fixed_image_standardization(img_tensor)
+    img_tensor =  (img_tensor - 127.5) / 128.0
     return img_tensor
 
 def draw_faces(image,boxes,color =  (0,255,0)):
@@ -33,6 +34,7 @@ def draw_faces(image,boxes,color =  (0,255,0)):
         x1,y1,x2,y2 = box
         image = cv2.rectangle(image, (x1,y1), (x2,y2), color, 1)
     return image
+
 def face_encode(image,box,mode = "rgb"):
     '''
     box : x1,y1,x2,y2'''
@@ -137,8 +139,8 @@ class FacialVertification:
 
         if len(face_encodings) == 0:
             return np.empty((0))
-
         return np.linalg.norm(face_encodings - face_to_compare, axis=1)
+    
     def check_face(self,frame,face_know,draw_image = True,threshold_value = 0.8):
         names = []
         frame_copy = cv2.cvtColor(frame.copy(),cv2.COLOR_BGR2RGB)
@@ -158,7 +160,7 @@ class FacialVertification:
         return names,frame
 
 if __name__ == "__main__":
-    cam = cv2.VideoCapture(config['cam_stream'])
+    cam = cv2.VideoCapture(0)
     vertificat = FacialVertification()
     
     while True:

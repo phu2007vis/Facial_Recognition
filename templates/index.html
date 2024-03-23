@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mì Ai</title>
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="section">
+      <h1>Demo stream video từ webcam</h1>
+      <img src="{{ url_for('image_feed') }}" alt="Webcam Stream">
+      <button id="my_button" class="button">Take picture</button>
+    </div>
+    <div class="section">
+      <h1>Kết quả</h1>
+      <img id="result" alt="Result Image">
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', (event) => {
+      const button = document.getElementById("my_button");
+      const image = document.getElementById("result");
+  
+      button.addEventListener('click', () => {
+        fetch('/detect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({}) // No need to send any data in this case
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Image saved on the server:', data);
+          // Append timestamp to the image URL to prevent caching
+          image.src = "/static/result.jpg?" + new Date().getTime();
+        })
+        .catch(error => {
+          console.error('Error saving image:', error);
+        });
+      });
+    });
+  </script>
+  
+</body>
+</html>

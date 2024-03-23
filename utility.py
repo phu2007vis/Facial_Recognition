@@ -7,6 +7,12 @@
 
 from datetime import datetime
 import os
+import cv2
+import numpy as np
+try:
+    import torch
+except:
+    print("can't import torch")
 
 
 def get_time():
@@ -47,3 +53,21 @@ def xywh2xyxy(boxes):
 def make_if_not_exist(folder_path):
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
+
+def preprocessing_face(face:np.array):
+    face = cv2.resize(face,(160,160))
+    img_tensor = torch.from_numpy(face.transpose((2, 0, 1))).float()
+    img_tensor =  (img_tensor - 127.5) / 128.0
+    return img_tensor
+def euclit(face_encodings, face_to_compare):
+    if len(face_encodings) == 0:
+        return np.empty((0))
+    return np.linalg.norm(face_encodings - face_to_compare, axis=1)
+def put_text(im,text,y = 0,color = (0,0,255)):
+    cv2.putText(im,text,(10,50+y),cv2.FONT_HERSHEY_COMPLEX,1,color,2)
+    return im
+def draw_faces(image,boxes,color =  (0,255,0)):
+    for box in boxes:
+        x1,y1,x2,y2 = box
+        image = cv2.rectangle(image, (x1,y1), (x2,y2), color, 1)
+    return image
