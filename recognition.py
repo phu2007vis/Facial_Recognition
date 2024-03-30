@@ -1,12 +1,11 @@
 import cv2
 import numpy as np
 import math
-from utility import xywh2xyxy,euclit   
+from utility import xywh2xyxy
 import yaml
 import pickle
 import os
 import glob
-import sys
 import utility
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
@@ -15,13 +14,14 @@ if config['type_recognition'] == "dlib":
     landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
     feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
     detector = dlib.get_frontal_face_detector()
-else:
     from anti_spoof_predict import model_test,spoof_predict
+else:
+
     from facenet_pytorch import InceptionResnetV1
     import torch
     resnet = InceptionResnetV1(pretrained='casia-webface').eval()
     
-
+name_real_or_fake = ['fake','real','fake']
 
 class Detection:
     def __init__(self):
@@ -121,15 +121,19 @@ class Recognition:
         with open(file_path, "wb") as f:
             pickle.dump(self.names, f)
             pickle.dump(self.encodes, f)
-
-
-
-    
-
-    # 因为有可能截下来的人脸再去检测，检测不出来人脸了, 所以要确保是 检测到人脸的人脸图像拿去算特征
-    # For photos of faces saved, we need to make sure that we can detect faces from the cropped images
-
-    
+if __name__ == "__main__":
+    from utility import *
+    cam = cv2.VideoCapture(0)
+    recog = Recognition()
+    while True:
+        ret,frame = cam.read()
+        name,box = recog.recognition(frame)
+        frame = draw_faces(frame,[box])
+        frame = put_text(frame,name,y= 100)
+        cv2.imshow("farme",frame)
+        #q to exit
+        if cv2.waitKey(8) == ord("q"):
+            break
 
 
 

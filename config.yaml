@@ -11,8 +11,8 @@ face_recognition:
 face_data_path: data.pkl
 data:
   #from_image,from_pkl
-  load_data_type: from_pkl
-  data_path: resources/face_encode_data/dlib.pkl
+  load_data_type: from_image
+  data_path: DataBase
   save_data: 
     save_type: pkl
     
