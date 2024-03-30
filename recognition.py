@@ -1,3 +1,4 @@
+from sklearn.neighbors import NearestNeighbors
 import cv2
 import numpy as np
 import math
@@ -7,6 +8,7 @@ import pickle
 import os
 import glob
 import utility
+import collections
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 if config['type_recognition'] == "dlib":
@@ -57,17 +59,28 @@ def face_detect(frame):
 class Recognition:
     def __init__(self) -> None:
        getattr(self,config['data']['load_data_type'])()
-       
+       self.label_setup()
+       self.knn_setup()
+    def knn_setup(self):
+        self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
+        self.knn.fit(self.encodes)
     def recognition(self,frame):
         face = face_detect(frame)[0]
         if len(face) ==0:
             return None,None
         feature = self.extract_feature(frame,face)
-        distance = self.get_face_distance(feature)
-        name = "unknow"
-        index = np.argmin(distance)
-        if distance[index] < config['face_recognition']['threshold']:
-            name = self.names[index]
+        
+        distances, indices = self.knn.kneighbors(np.expand_dims(feature,axis = 0))
+        names = [self.label2name[label] for i,label in enumerate(indices[0]) if distances[0][i] < config['face_recognition']['threshold']]
+        name_counts = collections.Counter(names)
+        if not len(name_counts):
+            return "unknow",face
+        return name_counts.most_common(1)[0][0],face
+        # distance = self.get_face_distance(feature)
+        # name = "unknow"
+        # index = np.argmin(distance)
+        # if distance[index] < config['face_recognition']['threshold']:
+        #     name = self.label2name[self.label[index]]
         return name,face
     def dlib(self,frame,face):
         '''
@@ -91,7 +104,18 @@ class Recognition:
         with open(config['data']['data_path'], "rb") as f:
             self.names = pickle.load(f)
             self.encodes = pickle.load(f)
-        
+    def label_setup(self):
+        assert(self.names!= None)
+        self.label2name = {}
+        self.name2label = {}
+        self.label = []
+        count = 0
+        for name in self.names:
+            if not self.label2name.get(name,None):
+                self.label2name[count] = name
+                self.name2label[name]  = count
+                count +=1
+            self.label.append(self.name2label[name])
     def from_image(self):
         self.names = []
         self.encodes = []
@@ -128,8 +152,18 @@ if __name__ == "__main__":
     while True:
         ret,frame = cam.read()
         name,box = recog.recognition(frame)
-        frame = draw_faces(frame,[box])
-        frame = put_text(frame,name,y= 100)
+        if box:
+            color = (0,255,0)
+            if name=="unknow":
+                color = (0,0,255)
+            frame = draw_faces(frame,[box])
+            frame = put_text(frame,name,y= 100,color = color)
+            label,_  =  spoof_predict(frame,[box])
+            color = (0,0,255)
+            if name_real_or_fake[label] == "real":
+                color = (0,255,0)
+            frame = put_text(frame,name_real_or_fake[label],y= 50,color=color)
+            
         cv2.imshow("farme",frame)
         #q to exit
         if cv2.waitKey(8) == ord("q"):
