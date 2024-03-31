@@ -76,13 +76,13 @@ class Stream():
                 b'Content-Type: image/jpeg\r\n\r\n' + b'' + b'\r\n')
 
 @app.route("/")
-def index():
+async def index():
     return render_template("index.html")
 
 stream = Stream()
 
 @app.route('/detect', methods=['POST'])
-def detect():
+async def detect():
     frame = np.copy(stream.image)
     name,box = recog.recognition(frame)
     frame = draw_faces(frame,[box])
@@ -91,7 +91,7 @@ def detect():
     return jsonify({'message': 'Image saved successfully'})
 
 @app.route("/image_feed")
-def image_feed():
+async def image_feed():
     return Response(stream.get_frame(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
