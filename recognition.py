@@ -58,6 +58,7 @@ def face_detect(frame):
 
 class Recognition:
     def __init__(self) -> None:
+       self.from_cache()
        getattr(self,config['data']['load_data_type'])()
        self.label_setup()
        self.knn_setup()
@@ -76,12 +77,7 @@ class Recognition:
         if not len(name_counts):
             return "unknow",face
         return name_counts.most_common(1)[0][0],face
-        # distance = self.get_face_distance(feature)
-        # name = "unknow"
-        # index = np.argmin(distance)
-        # if distance[index] < config['face_recognition']['threshold']:
-        #     name = self.label2name[self.label[index]]
-        return name,face
+    
     def dlib(self,frame,face):
         '''
         frame : bgr
@@ -101,7 +97,7 @@ class Recognition:
         return np.array(getattr(self,config['type_recognition'])(frame,face))
     
     def from_pkl(self):
-        with open(config['data']['data_path'], "rb") as f:
+        with open("resources/face_encode_data/dlib.pkl", "rb") as f:
             self.names = pickle.load(f)
             self.encodes = pickle.load(f)
     def label_setup(self):
@@ -119,32 +115,41 @@ class Recognition:
     def from_image(self):
         self.names = []
         self.encodes = []
-        self.names = []
-        self.encodes = []
         for path_dir in glob.glob(os.path.join(config['data']['data_path'],"*")):
             name = os.path.basename(path_dir)
             for image_path in glob.glob(os.path.join(path_dir , "*")):
-                print(f"loading file: {image_path}")
-                image  = cv2.imread(image_path)
-                feature = self.extract_feature(image)
+                if self.cache.get(image_path) is None:
+                    print(f"loading file: {image_path}")
+                    image  = cv2.imread(image_path)
+                    feature = self.extract_feature(image)
+                    self.cache[image_path] = feature
+                feature  = self.cache[image_path]
                 self.names.append(name)
                 self.encodes.append(feature)
         self.encodes = np.array(self.encodes)
+    
         if config['data'].get('save_data',None):
             self.save_data()
+                
             
     def save_data(self):
         self.save_data_pkl()
     
     def get_face_distance(self,feature):
         return getattr(utility,config['face_recognition']['face_distance'])(self.encodes,feature)
-    
+    def from_cache(self):
+        self.cache = {}
+        if os.path.exists(config['data']['cache']):
+            with open(config['data']['cache'],"rb") as f:
+                self.cache = pickle.load(f)
     def save_data_pkl(self):
-        file_path = os.path.join("resources/face_encode_data",config['type_recognition']+".pkl")
+        print("save data pkl")
+        file_path = os.path.join("resources/face_encode_data","dlib.pkl")
+        if os.path.exists(file_path):
+            os.remove(file_path)
         os.makedirs("resources/face_encode_data",exist_ok=True)
         with open(file_path, "wb") as f:
-            pickle.dump(self.names, f)
-            pickle.dump(self.encodes, f)
+            pickle.dump(self.cache,f)
 if __name__ == "__main__":
     from utility import *
     cam = cv2.VideoCapture(0)
