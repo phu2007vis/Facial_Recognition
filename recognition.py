@@ -11,6 +11,7 @@ import utility
 import collections
 from utility import *
 from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
+import faiss
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 if config['type_recognition'] == "dlib":
@@ -65,11 +66,30 @@ class Recognition:
        getattr(self,config['data']['load_data_type'])()
        self.label_setup()
        self.knn_setup()
+       self.type_classifier = "knn_distance"
+       if config["autofaiss"]['use']:
+           print("Use autofaiss")
+           self.type_classifier = "autofaiss_distance"
+           self.auto_faiss_setup()
        if config['classifier']['use']:
+           print("Use deep learning classifier")
            self.train()
+    
+    def auto_faiss_setup(self):
+        faiss_config = config["autofaiss"]
+        save_folder = faiss_config['root_folder']
+        print(f"Saving faiss encode at {save_folder}")
+        embedding_folder = os.path.join(save_folder,"embeddings") 
+        index_folder = os.path.join(save_folder,"index_folder")
+        os.makedirs(embedding_folder,exist_ok=True)
+        os.makedirs(index_folder,exist_ok=True)
+        np.save(f"{embedding_folder}/part1.npy", self.encodes)
+        os.system(f'autofaiss build_index --embeddings="{embedding_folder}" --index_path="{index_folder}/knn.index" --index_infos_path="{index_folder}/index_infos.json" --metric_type="l2"')
+        self.my_index = faiss.read_index(glob.glob(f"{index_folder}/*.index")[0])
     def knn_setup(self):
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
         self.knn.fit(self.encodes)
+        self.threshsold = config['face_recognition']['threshold']
     def recognition(self,frame,return_id =None):
         '''
         return name,bbox(x1,y1,x2,y2)
@@ -79,18 +99,27 @@ class Recognition:
         face = face_detect(frame)[0]
         if len(face) ==0:
             return None,None
-        feature = self.extract_feature(frame,face)
-        distances, indices = self.knn.kneighbors(np.expand_dims(feature,axis = 0))
-        ids = [self.label2id[label] for i,label in enumerate(indices[0]) if distances[0][i] < config['face_recognition']['threshold']]
-        name_counts = collections.Counter(ids)
-    
-        if not len(name_counts):
+        #1,feature_dims
+        feature = np.expand_dims(self.extract_feature(frame,face),axis = 0)
+        if self.type_classifier == "knn_distance":
+            distances, indices = self.knn.kneighbors(feature)
+        elif self.type_classifier == "autofaiss_distance":
+            k = 3
+            distances, indices = self.my_index.search(feature, k)
+        count = self.get_best(distances=distances,indices=indices)
+        
+        if not len(count):
             return "unknow",face
-        id =  name_counts.most_common(1)[0][0]
+        id =  count.most_common(1)[0][0]
         result = [self.get_name(id),face]
         if return_id:
             result.append(id)
         return  result
+    def get_best(self,distances,indices):
+        ids = [self.label2id[label] for i,label in enumerate(indices[0]) if distances[0][i] <self.threshsold]
+        print(ids)
+        name_counts = collections.Counter(ids)
+        return name_counts
     def get_name(self,id):
         return self.id2name[id]
     def dlib(self,frame,face):
@@ -198,7 +227,6 @@ class Recognition:
         
 def check_box(box):
     x1,y1,x2,y2 = box
-    print((x2-x1)*(y2-y1))
     if (x2-x1)*(y2-y1) < 30:
         return False
     return True

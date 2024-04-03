@@ -17,7 +17,13 @@ data:
   cache: resources/face_encode_data/dlib.pkl
   save_data: 
     save_type: pkl
-    
+  
+autofaiss:
+  use: True
+  root_folder: autofaiss
+
+
+
 classifier:
   # set False to set off the deep learning classifier
   use: False

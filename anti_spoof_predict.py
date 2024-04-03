@@ -77,7 +77,7 @@ class AntiSpoofPredict(Detection):
         img = img.unsqueeze(0).to(self.device)
         with torch.no_grad():
             result = self.model.forward(img)
-            result = F.softmax(result).cpu().numpy()
+            result = F.softmax(result,dim = -1).cpu().numpy()
         return result
     
 import glob
