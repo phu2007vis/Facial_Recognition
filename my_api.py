@@ -52,9 +52,10 @@ def detect(base_64:imgage_base64):
     try:
         frame = base64_to_image(base_64.data)
         name, box = recog.recognition(frame)
-        return {"Ten": f"{name}"}
+        return {"Id": f"{name}"}
     except:
         return {"Error": "Sai format"}
+
 
 
 if __name__ == "__main__":

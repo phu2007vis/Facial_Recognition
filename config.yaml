@@ -20,7 +20,7 @@ data:
     
 classifier:
   # set False to set off the deep learning classifier
-  use: True
+  use: False
   net:
     feature_dims: [128,256,128]
     dropout: [0.2,0.4]

@@ -9,6 +9,7 @@ import os
 import glob
 import utility
 import collections
+from utility import *
 from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
@@ -68,19 +69,22 @@ class Recognition:
     def knn_setup(self):
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
         self.knn.fit(self.encodes)
-    def recognition(self,frame):
+    def recognition(self,frame,return_id =None):
         face = face_detect(frame)[0]
         if len(face) ==0:
             return None,None
         feature = self.extract_feature(frame,face)
-        
         distances, indices = self.knn.kneighbors(np.expand_dims(feature,axis = 0))
         names = [self.label2name[label] for i,label in enumerate(indices[0]) if distances[0][i] < config['face_recognition']['threshold']]
         name_counts = collections.Counter(names)
         if not len(name_counts):
             return "unknow",face
-        return name_counts.most_common(1)[0][0],face
-    
+        result = [name_counts.most_common(1)[0][0],face]
+        # if return_id:
+        #     pass
+        return  result
+    def get_name(self,id):
+        return 
     def dlib(self,frame,face):
         '''
         frame : bgr
@@ -174,15 +178,20 @@ class Recognition:
                                                                     dropout=dropout)
         
         
-
+def check_box(box):
+    x1,y1,x2,y2 = box
+    print((x2-x1)*(y2-y1))
+    if (x2-x1)*(y2-y1) < 30:
+        return False
+    return True
 if __name__ == "__main__":
-    from utility import *
+    
     cam = cv2.VideoCapture(0)
     recog = Recognition()
     while True:
         ret,frame = cam.read()
         name,box = recog.recognition(frame)
-        if box:
+        if box and check_box(box):
             color = (0,255,0)
             if name=="unknow":
                 color = (0,0,255)
