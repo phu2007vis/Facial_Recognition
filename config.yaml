@@ -7,7 +7,7 @@ type_recognition: dlib
 
 face_recognition:
   face_distance: euclit
-  threshold: 0.46
+  threshold: 0.36
 face_data_path: data.pkl
 
 data:
@@ -18,3 +18,12 @@ data:
   save_data: 
     save_type: pkl
     
+classifier:
+  # set False to set off the deep learning classifier
+  use: True
+  net:
+    feature_dims: [128,256,128]
+    dropout: [0.2,0.4]
+  max_epochs: 20
+  batch_size: 8
+  caculumn_size: 14

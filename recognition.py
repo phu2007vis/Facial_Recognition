@@ -9,6 +9,7 @@ import os
 import glob
 import utility
 import collections
+from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
 if config['type_recognition'] == "dlib":
@@ -62,6 +63,8 @@ class Recognition:
        getattr(self,config['data']['load_data_type'])()
        self.label_setup()
        self.knn_setup()
+       if config['classifier']['use']:
+           self.train()
     def knn_setup(self):
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
         self.knn.fit(self.encodes)
@@ -115,7 +118,8 @@ class Recognition:
     def from_image(self):
         self.names = []
         self.encodes = []
-        for path_dir in glob.glob(os.path.join(config['data']['data_path'],"*")):
+        self.label_index = []
+        for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"*"))):
             name = os.path.basename(path_dir)
             for image_path in glob.glob(os.path.join(path_dir , "*")):
                 if self.cache.get(image_path) is None:
@@ -124,8 +128,10 @@ class Recognition:
                     feature = self.extract_feature(image)
                     self.cache[image_path] = feature
                 feature  = self.cache[image_path]
+                self.label_index.append(i)
                 self.names.append(name)
                 self.encodes.append(feature)
+        self.label_index = np.array(self.label_index)
         self.encodes = np.array(self.encodes)
     
         if config['data'].get('save_data',None):
@@ -150,6 +156,25 @@ class Recognition:
         os.makedirs("resources/face_encode_data",exist_ok=True)
         with open(file_path, "wb") as f:
             pickle.dump(self.cache,f)
+    def train(self):
+        train_config = config['classifier']
+        num_class  = max(self.label_index)+1
+        feature_dims,dropout = train_config['net']['feature_dims'] ,train_config['net']['dropout']                         
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        max_epochs = train_config['max_epochs']
+        batch_size = train_config['batch_size']
+        caculumn_size = train_config['caculumn_size']
+        self.classifier = init_and_train_model_from_scatch_pipeline((self.encodes,self.label_index),
+                                                                    num_class=num_class,
+                                                                    feature_dims=feature_dims,
+                                                                    device = device,
+                                                                    max_epochs=max_epochs,
+                                                                    batch_size= batch_size,
+                                                                    caculumn_size = caculumn_size,
+                                                                    dropout=dropout)
+        
+        
+
 if __name__ == "__main__":
     from utility import *
     cam = cv2.VideoCapture(0)
