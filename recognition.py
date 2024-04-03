@@ -104,7 +104,7 @@ class Recognition:
         if self.type_classifier == "knn_distance":
             distances, indices = self.knn.kneighbors(feature)
         elif self.type_classifier == "autofaiss_distance":
-            k = 3
+            k = 4
             distances, indices = self.my_index.search(feature, k)
         count = self.get_best(distances=distances,indices=indices)
         
@@ -117,7 +117,6 @@ class Recognition:
         return  result
     def get_best(self,distances,indices):
         ids = [self.label2id[label] for i,label in enumerate(indices[0]) if distances[0][i] <self.threshsold]
-        print(ids)
         name_counts = collections.Counter(ids)
         return name_counts
     def get_name(self,id):

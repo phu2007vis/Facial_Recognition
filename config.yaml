@@ -7,7 +7,7 @@ type_recognition: dlib
 
 face_recognition:
   face_distance: euclit
-  threshold: 0.36
+  threshold: 0.24
 face_data_path: data.pkl
 
 data:
