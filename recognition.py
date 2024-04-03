@@ -24,7 +24,8 @@ else:
     from facenet_pytorch import InceptionResnetV1
     import torch
     resnet = InceptionResnetV1(pretrained='casia-webface').eval()
-    
+
+SPLIT = "()()()()()()()"
 name_real_or_fake = ['fake','real','fake']
 
 class Detection:
@@ -70,21 +71,28 @@ class Recognition:
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
         self.knn.fit(self.encodes)
     def recognition(self,frame,return_id =None):
+        '''
+        return name,bbox(x1,y1,x2,y2)
+        or 
+        return name,bbox ,id 
+        '''
         face = face_detect(frame)[0]
         if len(face) ==0:
             return None,None
         feature = self.extract_feature(frame,face)
         distances, indices = self.knn.kneighbors(np.expand_dims(feature,axis = 0))
-        names = [self.label2name[label] for i,label in enumerate(indices[0]) if distances[0][i] < config['face_recognition']['threshold']]
-        name_counts = collections.Counter(names)
+        ids = [self.label2id[label] for i,label in enumerate(indices[0]) if distances[0][i] < config['face_recognition']['threshold']]
+        name_counts = collections.Counter(ids)
+    
         if not len(name_counts):
             return "unknow",face
-        result = [name_counts.most_common(1)[0][0],face]
-        # if return_id:
-        #     pass
+        id =  name_counts.most_common(1)[0][0]
+        result = [self.get_name(id),face]
+        if return_id:
+            result.append(id)
         return  result
     def get_name(self,id):
-        return 
+        return self.id2name[id]
     def dlib(self,frame,face):
         '''
         frame : bgr
@@ -103,28 +111,39 @@ class Recognition:
             face = face_detect(frame)[0]
         return np.array(getattr(self,config['type_recognition'])(frame,face))
     
-    def from_pkl(self):
-        with open("resources/face_encode_data/dlib.pkl", "rb") as f:
-            self.names = pickle.load(f)
-            self.encodes = pickle.load(f)
+    # def from_pkl(self):
+    #     with open("resources/face_encode_data/dlib.pkl", "rb") as f:
+    #         self.id = pickle.load(f)
+    #         self.encodes = pickle.load(f)
     def label_setup(self):
-        assert(self.names!= None)
-        self.label2name = {}
-        self.name2label = {}
-        self.label = []
+        assert(self.id!= None)
+        self.label2id = {}
         count = 0
-        for name in self.names:
-            if not self.label2name.get(name,None):
-                self.label2name[count] = name
-                self.name2label[name]  = count
+        for id in self.id:
+            if not self.label2id.get(id,None):
+                self.label2id[count] = id
                 count +=1
-            self.label.append(self.name2label[name])
+            
     def from_image(self):
-        self.names = []
+        self.id = []
         self.encodes = []
         self.label_index = []
+        self.id2name = {}
+        for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"*"))):
+            
+            try:
+                int(os.base_name(path_dir.spit("-->")[0]))
+            except:
+                base_name = str(i) +SPLIT+os.path.basename(path_dir).split(SPLIT)[-1]
+                dir_name = os.path.dirname(path_dir)
+                new_name = os.path.join(dir_name,base_name)
+                os.rename(path_dir,new_name)
+                
         for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"*"))):
             name = os.path.basename(path_dir)
+            id = name.split(SPLIT)[0]
+            name = name.split(SPLIT)[-1]
+            self.id2name[id] = name
             for image_path in glob.glob(os.path.join(path_dir , "*")):
                 if self.cache.get(image_path) is None:
                     print(f"loading file: {image_path}")
@@ -133,7 +152,7 @@ class Recognition:
                     self.cache[image_path] = feature
                 feature  = self.cache[image_path]
                 self.label_index.append(i)
-                self.names.append(name)
+                self.id.append(id)
                 self.encodes.append(feature)
         self.label_index = np.array(self.label_index)
         self.encodes = np.array(self.encodes)
@@ -176,7 +195,6 @@ class Recognition:
                                                                     batch_size= batch_size,
                                                                     caculumn_size = caculumn_size,
                                                                     dropout=dropout)
-        
         
 def check_box(box):
     x1,y1,x2,y2 = box

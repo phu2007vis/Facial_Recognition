@@ -19,7 +19,6 @@ def train_model_one_epoch(model, device, dataloader, loss_fn, optim, epoch, colu
         predict = model(x)
         loss = loss_fn(predict, target)
         loss.backward()
-
         print(f"Current loss at iter {i+1} of epoch {epoch}: {loss.item()}")
         if cur_column >= column_size:
             optim.step()
