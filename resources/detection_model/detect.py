@@ -4,8 +4,8 @@ import math
 import numpy as np
 class Detection:
     def __init__(self):
-        caffemodel = r"D:\face_liveness_detection-Anti-spoofing\resources\detection_model\Widerface-RetinaFace.caffemodel"
-        deploy = r"D:\face_liveness_detection-Anti-spoofing\resources\detection_model\deploy.prototxt"
+        caffemodel = r"resources\detection_model\Widerface-RetinaFace.caffemodel"
+        deploy = r"resources\detection_model\deploy.prototxt"
         self.detector = cv2.dnn.readNetFromCaffe(deploy, caffemodel)
         self.detector_confidence = 0.6
 

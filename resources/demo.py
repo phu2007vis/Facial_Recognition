@@ -8,12 +8,14 @@ from timm.utils import setup_default_logging
 _logger = logging.getLogger("inference")
 
 
+import gdown
 
+# Replace the URL with your Google Drive file link
 
 def get_parser():
     parser = argparse.ArgumentParser(description="PyTorch MiVOLO Inference")
     parser.add_argument("--output", type=str, default="output", help="folder for output results")
-    parser.add_argument("--checkpoint", default=r"D:\download\model_imdb_age_gender_4.22.pth\model_imdb_age_gender_4.22.pth", type=str, help="path to mivolo checkpoint")
+    parser.add_argument("--checkpoint", default=r"model_imdb_age_gender_4.22.pth", type=str, help="path to mivolo checkpoint")
 
     parser.add_argument(
         "--with-persons", action="store_true", default=False, help="If set model will run with persons, if available"
