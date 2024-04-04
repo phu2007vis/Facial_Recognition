@@ -1,3 +1,6 @@
-torch
-numpy
-facenet_pytorch
+huggingface_hub
+ultralytics==8.1.0
+timm==0.8.13.dev0
+yt_dlp
+lapx>=0.5.2
+-e .

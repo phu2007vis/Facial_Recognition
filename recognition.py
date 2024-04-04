@@ -1,8 +1,7 @@
 from sklearn.neighbors import NearestNeighbors
 import cv2
+from resources.detection_model.detect import face_detect
 import numpy as np
-import math
-from utility import xywh2xyxy
 import yaml
 import pickle
 import os
@@ -10,7 +9,6 @@ import glob
 import utility
 import collections
 from utility import *
-from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
 import faiss
 with open("config.yaml","r") as f:
     config = yaml.safe_load(f)
@@ -19,46 +17,11 @@ if config['type_recognition'] == "dlib":
     landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
     feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
     detector = dlib.get_frontal_face_detector()
-    from anti_spoof_predict import model_test,spoof_predict
-else:
-
-    from facenet_pytorch import InceptionResnetV1
-    import torch
-    resnet = InceptionResnetV1(pretrained='casia-webface').eval()
-
+    from anti_spoof_predict import spoof_predict
+    
 SPLIT = "()()()()()()()"
 name_real_or_fake = ['fake','real','fake']
 
-class Detection:
-    def __init__(self):
-        caffemodel = "./resources/detection_model/Widerface-RetinaFace.caffemodel"
-        deploy = "./resources/detection_model/deploy.prototxt"
-        self.detector = cv2.dnn.readNetFromCaffe(deploy, caffemodel)
-        self.detector_confidence = 0.6
-
-    def get_bbox(self, img):
-        height, width = img.shape[0], img.shape[1]
-        aspect_ratio = width / height
-        if img.shape[1] * img.shape[0] >= 192 * 192:
-            img = cv2.resize(img,
-                             (int(192 * math.sqrt(aspect_ratio)),
-                              int(192 / math.sqrt(aspect_ratio))), interpolation=cv2.INTER_LINEAR)
-
-        blob = cv2.dnn.blobFromImage(img, 1, mean=(104, 117, 123))
-        self.detector.setInput(blob, 'data')
-        out = self.detector.forward('detection_out').squeeze()
-        max_conf_index = np.argmax(out[:, 2])
-        left, top, right, bottom = out[max_conf_index, 3]*width, out[max_conf_index, 4]*height, \
-                                   out[max_conf_index, 5]*width, out[max_conf_index, 6]*height
-        bbox = [int(left), int(top), int(right-left+1), int(bottom-top+1)]
-        #x1,y1,w,h
-        return bbox
-det = Detection()
-def face_detect(frame):
-    '''
-    return [[x1,y1,x2,y2],[...],...]
-    '''
-    return xywh2xyxy([det.get_bbox(frame)])
 
 class Recognition:
     def __init__(self) -> None:
@@ -73,6 +36,7 @@ class Recognition:
            self.auto_faiss_setup()
        if config['classifier']['use']:
            print("Use deep learning classifier")
+           from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
            self.train()
     
     def auto_faiss_setup(self):
