@@ -149,8 +149,6 @@ class MiVOLO:
         age_output = output[:, 2]
         gender_output = output[:, :2].softmax(-1)
         gender_probs, gender_indx = gender_output.topk(1)
-
-
         # per face
         self.ages = []
         self.genders = []
@@ -162,7 +160,6 @@ class MiVOLO:
             age = age * (self.meta.max_age - self.meta.min_age) + self.meta.avg_age
             age = round(age, 2)
             self.ages.append(age)
-
             if gender_probs is not None:
                 gender = "male" if gender_indx[index].item() == 0 else "female"
                 self.genders.append(gender)
