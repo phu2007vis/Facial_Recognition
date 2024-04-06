@@ -1,0 +1,2 @@
+from resources.detection_model.detect import face_detect
+from deepface

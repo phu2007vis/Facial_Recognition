@@ -33,3 +33,11 @@ classifier:
   max_epochs: 20
   batch_size: 8
   caculumn_size: 14
+sql:
+  endpoint: ---.***.ap-southeast-1haha
+  user: admin
+  password: phuocvip1
+  database: phuoc
+  setup_command:
+    - "CREATE TABLE IF NOT EXISTS orders (order_id INT AUTO_INCREMENT PRIMARY KEY, product_id INT, quantity INT);" 
+    - "CREATE TABLE IF NOT EXISTS orders (order_id INT AUTO_INCREMENT PRIMARY KEY,  INT, quantity INT);"
