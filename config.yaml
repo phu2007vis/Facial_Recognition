@@ -11,8 +11,8 @@ face_recognition:
 face_data_path: data.pkl
 
 data:
-  #from_image,from_pkl
-  load_data_type: from_image
+  #from_image,from sql
+  load_data_type: from_sql
   data_path: DataBase
   cache: resources/face_encode_data/dlib.pkl
   save_data: 
@@ -38,6 +38,3 @@ sql:
   user: admin
   password: phuocvip1
   database: phuoc
-  setup_command:
-    - "CREATE TABLE IF NOT EXISTS orders (order_id INT AUTO_INCREMENT PRIMARY KEY, product_id INT, quantity INT);" 
-    - "CREATE TABLE IF NOT EXISTS orders (order_id INT AUTO_INCREMENT PRIMARY KEY,  INT, quantity INT);"

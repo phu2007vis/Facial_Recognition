@@ -4,18 +4,21 @@
 # @Company : Minivision
 # @File : utility.py
 # @Software : PyCharm
-
+import base64
 from datetime import datetime
 import os
 import cv2
 import numpy as np
-try:
-    import torch
-except:
-    print("can't import torch")
+import yaml
+import img64
+from datetime import datetime
+import torch 
+SPLIT = "()()()()()()()"
+name_real_or_fake = ['fake','real','fake']
+
 def check_box(box):
     x1,y1,x2,y2 = box
-    if (x2-x1)*(y2-y1) < 30:
+    if (x2-x1)*(y2-y1) < 50:
         return False
     return True
 
@@ -75,3 +78,34 @@ def draw_faces(image,boxes,color =  (0,255,0)):
         x1,y1,x2,y2 = box
         image = cv2.rectangle(image, (x1,y1), (x2,y2), color, 1)
     return image
+def encode_image(image):
+    #buffer
+    return cv2.imencode(".png",image)[1]
+def image_to_base64(image):
+    '''
+    image bgr
+    rgb base 64
+    '''
+    return img64.image_to_base64(image)
+def base64_to_image(base64_string):
+    # Remove the data URL prefix if it exists
+    if base64_string.startswith("data:image"):
+        base64_string = base64_string.split(",")[1]
+    # Decode the base64 string
+    decoded_data = base64.b64decode(base64_string)
+    # Convert to numpy array
+    nparr = np.frombuffer(decoded_data, np.uint8)
+    # Decode the image using cv2
+    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    '''
+    bgr image
+    '''
+    return image
+
+def get_time():
+    #YYYY-MM-DD format
+    current_datetime = datetime.now()
+    return current_datetime.strftime('%Y-%m-%d')
+
+with open("config.yaml", "r") as f:
+    config = yaml.safe_load(f)

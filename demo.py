@@ -8,13 +8,7 @@ from resources.utility import put_text
 _logger = logging.getLogger("inference")
 
 
-
-
-
-
 def main():
-
-
     predictor = Predictor(verbose=True)
     cam = cv2.VideoCapture(0)
     while True:

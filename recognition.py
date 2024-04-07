@@ -2,25 +2,20 @@ from sklearn.neighbors import NearestNeighbors
 import cv2
 from resources.detection_model.detect import face_detect
 import numpy as np
-import yaml
+from resources.sql.sql_contronler import *
 import pickle
 import os
 import glob
 import utility
 import collections
-from utility import *
+from resources.utility import *
 import faiss
-with open("config.yaml","r") as f:
-    config = yaml.safe_load(f)
-if config['type_recognition'] == "dlib":
-    import dlib
-    landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
-    feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
-    detector = dlib.get_frontal_face_detector()
-    from anti_spoof_predict import spoof_predict
-    
-SPLIT = "()()()()()()()"
-name_real_or_fake = ['fake','real','fake']
+from anti_spoof_predict import spoof_predict
+import dlib
+
+landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
+feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
+detector = dlib.get_frontal_face_detector()
 
 
 class Recognition:
@@ -38,7 +33,6 @@ class Recognition:
            print("Use deep learning classifier")
            from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
            self.train()
-    
     def auto_faiss_setup(self):
         faiss_config = config["autofaiss"]
         save_folder = faiss_config['root_folder']
@@ -54,6 +48,12 @@ class Recognition:
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
         self.knn.fit(self.encodes)
         self.threshsold = config['face_recognition']['threshold']
+    def from_sql(self):
+        results = get_all_features_and_labels()
+        if results.pop(-1):
+            print("Not contain any picture")
+        self.encodes,self.id = results
+        self.id2name = get_id2name()[0]
     def recognition(self,frame,return_id =None):
         '''
         return name,bbox(x1,y1,x2,y2)
@@ -71,7 +71,6 @@ class Recognition:
             k = 4
             distances, indices = self.my_index.search(feature, k)
         count = self.get_best(distances=distances,indices=indices)
-        
         if not len(count):
             return "unknow",face
         id =  count.most_common(1)[0][0]
@@ -103,10 +102,6 @@ class Recognition:
             face = face_detect(frame)[0]
         return np.array(getattr(self,config['type_recognition'])(frame,face))
     
-    # def from_pkl(self):
-    #     with open("resources/face_encode_data/dlib.pkl", "rb") as f:
-    #         self.id = pickle.load(f)
-    #         self.encodes = pickle.load(f)
     def label_setup(self):
         assert(self.id!= None)
         self.label2id = {}
@@ -158,6 +153,7 @@ class Recognition:
     
     def get_face_distance(self,feature):
         return getattr(utility,config['face_recognition']['face_distance'])(self.encodes,feature)
+
     def from_cache(self):
         self.cache = {}
         if os.path.exists(config['data']['cache']):
@@ -171,6 +167,7 @@ class Recognition:
         os.makedirs("resources/face_encode_data",exist_ok=True)
         with open(file_path, "wb") as f:
             pickle.dump(self.cache,f)
+            
     def train(self):
         train_config = config['classifier']
         num_class  = max(self.label_index)+1

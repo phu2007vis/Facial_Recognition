@@ -33,7 +33,5 @@ class Predictor:
         boxes_list = face_detect(image)
         if not len(boxes_list) or not check_box(boxes_list[0]):
             return [],[]
-        
-        
         return self.age_gender_model.predict(image, boxes_list)
 
