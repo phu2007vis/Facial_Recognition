@@ -5,4 +5,5 @@ yt_dlp
 lapx>=0.5.2
 gdown
 img64
+skorch
 -e .

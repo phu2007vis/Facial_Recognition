@@ -12,10 +12,10 @@ from resources.utility import *
 import faiss
 from anti_spoof_predict import spoof_predict
 import dlib
+from resources.utility import check_box
 
 landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
 feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
-detector = dlib.get_frontal_face_detector()
 
 
 class Recognition:
@@ -184,12 +184,7 @@ class Recognition:
                                                                     batch_size= batch_size,
                                                                     caculumn_size = caculumn_size,
                                                                     dropout=dropout)
-        
-def check_box(box):
-    x1,y1,x2,y2 = box
-    if (x2-x1)*(y2-y1) < 30:
-        return False
-    return True
+
 if __name__ == "__main__":
     
     cam = cv2.VideoCapture(0)
