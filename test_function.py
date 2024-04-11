@@ -69,10 +69,12 @@ valid_dataset = CustomDataset((encode,label),num_class=num_class,mode="valid")
 
 net = get_classifier_model(88,valid_dataset=valid_dataset,mode="test",pretrained=r"train_model\params.pt")
 def get_predict(feature):
+    feature = torch.tensor(feature).float()
     if len(feature.shape)==1:
         feature = torch.tensor(feature).unsqueeze(0)
+        
     proba,indices = torch.softmax(torch.tensor(net.predict(feature)),dim = 1).max(1)
-    return proba[0],indices[0]
+    return proba[0].item(),indices[0].item()
     
 if __name__ == "__main__":
     import pdb;pdb.set_trace()
