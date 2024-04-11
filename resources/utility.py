@@ -13,6 +13,7 @@ import yaml
 import img64
 from datetime import datetime
 import torch 
+from sklearn.metrics import accuracy_score
 SPLIT = "()()()()()()()"
 name_real_or_fake = ['fake','real','fake']
 
@@ -119,4 +120,10 @@ def check_check_in(old_attendence,new_atendence,distance = 20):
     if abs(new_time-old_time) >=distance:
         return True
     return False
-    
+def valid_accuracy(net,ds,y = None):
+    y = [int(y.clone().detach().max(0)[1].item()) for _,y in ds]
+    y_predict = []
+    with torch.no_grad():
+        for predict in net.forward_iter(ds):
+            y_predict.extend(predict.max(1)[1].tolist())
+    return accuracy_score(y,y_predict)
