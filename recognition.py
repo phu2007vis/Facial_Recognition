@@ -79,7 +79,7 @@ class Recognition:
             result.append(id)
         return  result
     def get_best(self,distances,indices):
-        ids = [self.label2id[label] for i,label in enumerate(indices[0]) if distances[0][i] <self.threshsold]
+        ids = [self.id[label] for i,label in enumerate(indices[0]) if distances[0][i] <self.threshsold]
         name_counts = collections.Counter(ids)
         return name_counts
     def get_name(self,id):
@@ -110,6 +110,7 @@ class Recognition:
             if not self.label2id.get(id,None):
                 self.label2id[count] = id
                 count +=1
+        
             
     def from_image(self):
         self.id = []
@@ -203,7 +204,6 @@ if __name__ == "__main__":
             if name_real_or_fake[label] == "real":
                 color = (0,255,0)
             frame = put_text(frame,name_real_or_fake[label],y= 50,color=color)
-            
         cv2.imshow("farme",frame)
         #q to exit
         if cv2.waitKey(8) == ord("q"):
