@@ -204,7 +204,11 @@ def my_async_function():
     copy_check_in_queue = check_in_queue[:]
     check_in_queue = [copy_check_in_queue[-1]]
     for id, current_time, time_str in copy_check_in_queue:
-        check_in(id, current_time, time_str)
+        try:
+            check_in(id, current_time, time_str)
+        except Exception as e:
+            pass
+            
 
 def check_in_loop():
     global check_in_queue
