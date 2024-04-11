@@ -71,3 +71,4 @@ def draw_faces(image,boxes,color =  (0,255,0)):
         x1,y1,x2,y2 = box
         image = cv2.rectangle(image, (x1,y1), (x2,y2), color, 1)
     return image
+

@@ -134,5 +134,24 @@ def get_max_id():
     except mysql.connector.Error as e:
         print("Error while connecting to MySQL", e)
         return [e]
+def check_in(id,time,time_string):
+    try:
+        string_command = "INSERT INTO check_in (id, time_check_in,time_string) VALUES (%s, %s , %s);"
+        cursor.execute(string_command, (id, time,time_string))
+        connection.commit()
+        return [None]
+    except mysql.connector.Error as e:
+        print("Error while connecting to MySQL", e)
+        return [e]
+def delete_check_in_by_id(id):
+    try:
+        string_command = "delete from check_in where id = %s ;"
+        cursor.execute(string_command, (id,))
+        connection.commit()
+        return [None]
+    except mysql.connector.Error as e:
+        print("Error while connecting to MySQL", e)
+        return [e]
+    
 if __name__ == "__main__":
-    get_max_id()
+    delete_check_in_by_id(1)

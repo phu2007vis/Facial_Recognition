@@ -109,3 +109,14 @@ def get_time():
 
 with open("config.yaml", "r") as f:
     config = yaml.safe_load(f)
+
+def check_check_in(old_attendence,new_atendence,distance = 20):
+    id,_,old_time = old_attendence
+    new_id,_,new_time = new_atendence
+    old_time,new_time = float(old_time),float(new_time)
+    if id != new_id:
+        return True
+    if abs(new_time-old_time) >=distance:
+        return True
+    return False
+    

@@ -13,6 +13,11 @@ import faiss
 from anti_spoof_predict import spoof_predict
 import dlib
 from resources.utility import check_box
+import gc
+import asyncio
+import threading
+import time
+
 
 landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
 feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
@@ -43,6 +48,8 @@ class Recognition:
         os.makedirs(index_folder,exist_ok=True)
         np.save(f"{embedding_folder}/part1.npy", self.encodes)
         os.system(f'autofaiss build_index --embeddings="{embedding_folder}" --index_path="{index_folder}/knn.index" --index_infos_path="{index_folder}/index_infos.json" --metric_type="l2"')
+        del self.encodes
+        gc.collect()
         self.my_index = faiss.read_index(glob.glob(f"{index_folder}/*.index")[0])
     def knn_setup(self):
         self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
@@ -186,29 +193,65 @@ class Recognition:
                                                                     caculumn_size = caculumn_size,
                                                                     dropout=dropout)
 
-if __name__ == "__main__":
-    
-    cam = cv2.VideoCapture(0)
-    recog = Recognition()
+
+import time
+
+check_in_queue = []
+capture_thread = None
+
+def my_async_function():
+    global check_in_queue
+    copy_check_in_queue = check_in_queue[:]
+    check_in_queue = [copy_check_in_queue[-1]]
+    for id, current_time, time_str in copy_check_in_queue:
+        check_in(id, current_time, time_str)
+
+def check_in_loop():
+    global check_in_queue
     while True:
-        ret,frame = cam.read()
-        name,box = recog.recognition(frame)
+        print(len(check_in_queue))
+        if len(check_in_queue):
+            my_async_function()
+        time.sleep(5)
+
+def capture_and_process(recog):
+    global check_in_queue
+    cam = cv2.VideoCapture(0)
+    while True:
+        ret, frame = cam.read()
+        try:
+            name, box, id = recog.recognition(frame, return_id=True)
+        except Exception as e:
+            print(e)
+            continue
+        current_time = get_time()  # Assuming get_time() is defined elsewhere
+        if not check_in_queue or check_check_in(check_in_queue[-1], (id, current_time, str(time.time()))):
+            check_in_queue.append((id, current_time, str(time.time())))
         if box and check_box(box):
-            color = (0,255,0)
-            if name=="unknow":
-                color = (0,0,255)
-            frame = draw_faces(frame,[box])
-            frame = put_text(frame,name,y= 100,color = color)
-            label,_  =  spoof_predict(frame,[box])
-            color = (0,0,255)
+            color = (0, 255, 0)
+            if name == "unknown":
+                color = (0, 0, 255)
+            frame = draw_faces(frame, [box])  # Assuming draw_faces() is defined elsewhere
+            frame = put_text(frame, name, y=100, color=color)  # Assuming put_text() is defined elsewhere
+            label, _ = spoof_predict(frame, [box])  # Assuming spoof_predict() is defined elsewhere
+            color = (0, 0, 255)
             if name_real_or_fake[label] == "real":
-                color = (0,255,0)
-            frame = put_text(frame,name_real_or_fake[label],y= 50,color=color)
-        cv2.imshow("farme",frame)
-        #q to exit
+                color = (0, 255, 0)
+            frame = put_text(frame, name_real_or_fake[label], y=50, color=color)  # Assuming name_real_or_fake is defined elsewhere
+        cv2.imshow("frame", frame)
         if cv2.waitKey(8) == ord("q"):
             break
 
+def run_capture_and_process(recog):
+    global capture_thread
+    capture_thread = threading.Thread(target=capture_and_process, args=(recog,))
+    capture_thread.start()
+    check_in_thread = threading.Thread(target=check_in_loop)
+    check_in_thread.start()
+
+if __name__ == "__main__":
+    recog = Recognition()  # Assuming Recognition is defined elsewhere
+    run_capture_and_process(recog)
 
 
 
