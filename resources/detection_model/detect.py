@@ -2,6 +2,7 @@ import cv2
 from utility import xywh2xyxy
 import math
 import numpy as np
+from mtcnn import MTCNN
 class Detection:
     def __init__(self):
         caffemodel = r"resources\detection_model\Widerface-RetinaFace.caffemodel"
@@ -27,6 +28,22 @@ class Detection:
         #x1,y1,w,h
         return bbox
 det = Detection()
+detector = MTCNN()
+
+def mtcnn_face_detect(frame,image_input = "bgr"):
+    if image_input == "bgr":
+        frame = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
+    faces = detector.detect_faces(frame)
+    face = []
+    if faces:
+        confidence_scores = [face['confidence'] for face in faces]
+        max_confidence_index = confidence_scores.index(max(confidence_scores))
+        #x,y,w,h
+        face = faces[max_confidence_index]['box']
+    return xywh2xyxy([face])
+    
+
+    
 def face_detect(frame):
     '''
     return [[x1,y1,x2,y2],[...],...]

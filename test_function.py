@@ -41,7 +41,7 @@ def get_classifier_model(num_class,
             max_epochs = max_epochs,
             train_split = predefined_split(valid_dataset),
             callbacks = [
-                EarlyStopping(),
+                EarlyStopping(patience = 13),
                 EpochScoring(valid_accuracy),
                 Checkpoint(load_best = True,dirname = "train_model")
             ]
@@ -67,7 +67,7 @@ def get_classifier_model(num_class,
 train_dataset = CustomDataset((encode,label),num_class=num_class,mode="train")
 valid_dataset = CustomDataset((encode,label),num_class=num_class,mode="valid")
 
-net = get_classifier_model(88,valid_dataset=valid_dataset,mode="test",pretrained=r"train_model\params.pt")
+net = get_classifier_model(88,valid_dataset=valid_dataset,mode="test",pretrained=r"D:\face_liveness_detection-Anti-spoofing\train_model\params.pt")
 def get_predict(feature):
     feature = torch.tensor(feature).float()
     if len(feature.shape)==1:
@@ -77,5 +77,6 @@ def get_predict(feature):
     return proba[0].item(),indices[0].item()
     
 if __name__ == "__main__":
-    import pdb;pdb.set_trace()
+    net.fit(train_dataset,None)
 
+        

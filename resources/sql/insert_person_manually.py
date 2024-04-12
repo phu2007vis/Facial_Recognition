@@ -3,7 +3,7 @@ from resources.utility import SPLIT,check_box,get_time,config
 import os
 import glob
 from recognition import Recognition
-from resources.detection_model.detect import face_detect
+from resources.detection_model.detect import *
 import cv2
 
 
@@ -23,7 +23,7 @@ max_id,check = get_max_id()
 if  check:
     print("SQL error")
     exit()
-begin_index = max_id+1
+begin_index = 27
 with open("logfile.txt",'a+') as f:
     f.write(f"Insert new faces from new id {begin_index} ")
 
@@ -52,18 +52,23 @@ for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"
         image  = cv2.imread(image_path)
      
         box  = face_detect(image)[0]
+        if not check_box(box):
+            box = mtcnn_face_detect(image)[0]
+        if not check_box(box):
+            with open("logfile.txt",'a+') as f:
+                f.write(f"file can't detect face {image_path}")
+                f.write("\n")
+            continue
         if image_index == 0:
             time = get_time()
             insert_new_person(id_per,name,"male",2,time)
-        if check_box(box):
-            x1,y1,x2,y2 = box
-            feature = recog.extract_feature(image,box)
-            image = image[y1:y2,x1:x2,:]
-            base64_image = image_to_base64(image)
-        
-            insert_new_feature_and_image(image_index,id_per,feature,base64_image)
-        else:
-            print(f"Important check file  {image_path} have no face")
+      
+        x1,y1,x2,y2 = box
+        feature = recog.extract_feature(image,box)
+        image = image[y1:y2,x1:x2,:]
+        base64_image = image_to_base64(image)
+
+        insert_new_feature_and_image(image_index,id_per,feature,base64_image)
             
             
         
