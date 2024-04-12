@@ -1,20 +1,15 @@
-from sklearn.neighbors import NearestNeighbors
 import cv2
 from resources.detection_model.detect import face_detect
 import numpy as np
 from resources.sql.sql_contronler import *
-import pickle
 import os
 import glob
-import utility
 import collections
 from resources.utility import *
 import faiss
 from anti_spoof_predict import spoof_predict
 import dlib
-from resources.utility import check_box
 import gc
-import asyncio
 import threading
 import time
 from test_function import *
@@ -25,11 +20,9 @@ feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_re
 
 class Recognition:
     def __init__(self) -> None:
-       self.from_cache()
        getattr(self,config['data']['load_data_type'])()
        self.label_setup()
-       self.knn_setup()
-       self.type_classifier = "knn_distance"
+       self.threshsold = 4
        if config["autofaiss"]['use']:
            print("Use autofaiss")
            self.type_classifier = "autofaiss_distance"
@@ -51,16 +44,14 @@ class Recognition:
         del self.encodes
         gc.collect()
         self.my_index = faiss.read_index(glob.glob(f"{index_folder}/*.index")[0])
-    def knn_setup(self):
-        self.knn = NearestNeighbors(n_neighbors=3, algorithm='brute')
-        self.knn.fit(self.encodes)
-        self.threshsold = config['face_recognition']['threshold']
+        
     def from_sql(self):
         results = get_all_features_and_labels()
         if results.pop(-1):
             print("Not contain any picture")
         self.encodes,self.id = results
         self.id2name = get_id2name()[0]
+        
     def recognition(self,frame,return_id =None):
         '''
         return name,bbox(x1,y1,x2,y2)
@@ -72,25 +63,25 @@ class Recognition:
             return None,None
         #1,feature_dims
         feature = np.expand_dims(self.extract_feature(frame,face),axis = 0)
-        
-        # if self.type_classifier == "knn_distance":
-        #     distances, indices = self.knn.kneighbors(feature)
-        # elif self.type_classifier == "autofaiss_distance":
-        #     k = 4
-        #     distances, indices = self.my_index.search(feature, k)
-        # count = self.get_best(distances=distances,indices=indices)
-        # if not len(count):
-        #     return "unknow",face
-        # id =  count.most_common(1)[0][0]
-        # result = [self.get_name(id),face]
-        proba,id = get_predict(feature)
-        
-        result = [self.get_name(id),face]
+    
+        if self.type_classifier == "autofaiss_distance":
+            
+            distances, indices = self.my_index.search(feature, self.threshsold)
+            count = self.get_best(distances=distances,indices=indices)
+            if not len(count):
+                return "unknow",face
+            id =  count.most_common(1)[0][0]
+            result = [self.get_name(id),face]
+        else:
+            proba,id = get_predict(feature)
+            print(proba)
+            result = [self.get_name(id),face]
         if return_id:
             result.append(id)
         return  result
+    
     def get_best(self,distances,indices):
-        ids = [self.id[label] for i,label in enumerate(indices[0]) if distances[0][i] <self.threshsold]
+        ids = [self.id[label] for i,label in enumerate(indices[0]) if distances[0][i] <config['face_recognition']['threshold']]
         name_counts = collections.Counter(ids)
         return name_counts
     def get_name(self,id):
@@ -124,62 +115,10 @@ class Recognition:
         
             
     def from_image(self):
-        self.id = []
-        self.encodes = []
-        self.label_index = []
+        
         self.id2name = {}
-        for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"*"))):
-            
-            try:
-                int(os.base_name(path_dir.spit("-->")[0]))
-            except:
-                base_name = str(i) +SPLIT+os.path.basename(path_dir).split(SPLIT)[-1]
-                dir_name = os.path.dirname(path_dir)
-                new_name = os.path.join(dir_name,base_name)
-                os.rename(path_dir,new_name)
-                
-        for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"*"))):
-            name = os.path.basename(path_dir)
-            id = name.split(SPLIT)[0]
-            name = name.split(SPLIT)[-1]
-            self.id2name[id] = name
-            for image_path in glob.glob(os.path.join(path_dir , "*")):
-                if self.cache.get(image_path) is None:
-                    print(f"loading file: {image_path}")
-                    image  = cv2.imread(image_path)
-                    feature = self.extract_feature(image)
-                    self.cache[image_path] = feature
-                feature  = self.cache[image_path]
-                self.label_index.append(i)
-                self.id.append(id)
-                self.encodes.append(feature)
-        self.label_index = np.array(self.label_index)
-        self.encodes = np.array(self.encodes)
-    
-        if config['data'].get('save_data',None):
-            self.save_data()
-                
-            
-    def save_data(self):
-        self.save_data_pkl()
-    
-    def get_face_distance(self,feature):
-        return getattr(utility,config['face_recognition']['face_distance'])(self.encodes,feature)
+        rename_folder(config['data']['data_path'])
 
-    def from_cache(self):
-        self.cache = {}
-        if os.path.exists(config['data']['cache']):
-            with open(config['data']['cache'],"rb") as f:
-                self.cache = pickle.load(f)
-    def save_data_pkl(self):
-        print("save data pkl")
-        file_path = os.path.join("resources/face_encode_data","dlib.pkl")
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        os.makedirs("resources/face_encode_data",exist_ok=True)
-        with open(file_path, "wb") as f:
-            pickle.dump(self.cache,f)
-            
     def train(self):
         train_config = config['classifier']
         num_class  = max(self.label_index)+1
@@ -187,15 +126,7 @@ class Recognition:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         max_epochs = train_config['max_epochs']
         batch_size = train_config['batch_size']
-        caculumn_size = train_config['caculumn_size']
-        self.classifier = init_and_train_model_from_scatch_pipeline((self.encodes,self.label_index),
-                                                                    num_class=num_class,
-                                                                    feature_dims=feature_dims,
-                                                                    device = device,
-                                                                    max_epochs=max_epochs,
-                                                                    batch_size= batch_size,
-                                                                    caculumn_size = caculumn_size,
-                                                                    dropout=dropout)
+        return 
 
 
 import time

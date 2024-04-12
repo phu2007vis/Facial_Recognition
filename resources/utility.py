@@ -127,3 +127,14 @@ def valid_accuracy(net,ds,y = None):
         for predict in net.forward_iter(ds):
             y_predict.extend(predict.max(1)[1].tolist())
     return accuracy_score(y,y_predict)
+
+def rename_folder(folder_path):
+    import glob
+    for i,path_dir in enumerate(glob.glob(folder_path)):
+        try:
+            int(os.base_name(path_dir.spit("-->")[0]))
+        except:
+            base_name = str(i) +SPLIT+os.path.basename(path_dir).split(SPLIT)[-1]
+            dir_name = os.path.dirname(path_dir)
+            new_name = os.path.join(dir_name,base_name)
+            os.rename(path_dir,new_name)

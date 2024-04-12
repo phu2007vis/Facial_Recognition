@@ -1,5 +1,5 @@
 import cv2
-from utility import xywh2xyxy
+from resources.utility import xywh2xyxy
 import math
 import numpy as np
 from mtcnn import MTCNN
@@ -27,6 +27,7 @@ class Detection:
         bbox = [int(left), int(top), int(right-left+1), int(bottom-top+1)]
         #x1,y1,w,h
         return bbox
+    
 det = Detection()
 detector = MTCNN()
 
@@ -41,8 +42,6 @@ def mtcnn_face_detect(frame,image_input = "bgr"):
         #x,y,w,h
         face = faces[max_confidence_index]['box']
     return xywh2xyxy([face])
-    
-
     
 def face_detect(frame):
     '''

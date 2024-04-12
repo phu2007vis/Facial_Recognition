@@ -8,3 +8,6 @@ resources/face_encode_data/*
 autofaiss
 my_project.egg-info
 resources/mivolo/*.pth
+train_model/history.*
+train_model/optimizer*
+train_model/history.json
