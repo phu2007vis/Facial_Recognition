@@ -69,9 +69,9 @@ class Recognition:
         if not len(count):
             return "unknow",face
         id_from_euclit_distance =  count.most_common(1)[0][0]
-        proba,id_from_neural_net = get_predict(feature)
-        if id_from_euclit_distance != id_from_neural_net:
-            return "unknow",face
+        # proba,id_from_neural_net = get_predict(feature)
+        # if id_from_euclit_distance != id_from_neural_net:
+        #     return "unknow",face
         
     
         result = [self.get_name(id_from_euclit_distance),face]

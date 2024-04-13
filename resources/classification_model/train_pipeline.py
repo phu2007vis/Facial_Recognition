@@ -53,7 +53,7 @@ def get_classifier_model(num_class,
                     EarlyStopping(patience = 13),
                     EpochScoring(valid_accuracy),
                     Checkpoint(load_best = True,dirname = "train_model")
-                ]
+                ],device = "cpu"
             )
             if pretrained:
                 net.initialize() 
@@ -101,7 +101,7 @@ def init_and_train_model_from_scatch_pipeline(
                                )
     net.fit(train_dataset,None)
 if __name__ == "__main__":
-    init_and_train_model_from_scatch_pipeline(max_epochs=1000)
+    init_and_train_model_from_scatch_pipeline(max_epochs=1000,feature_dims = [128,256], dropout=  [0.3,0.4,0.2])
         
 
 
