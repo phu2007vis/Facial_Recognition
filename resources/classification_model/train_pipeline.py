@@ -1,76 +1,116 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from resources.classification_model.BasicDataLoader import get_dataloader
 from resources.classification_model.BasicLinear import BasicLinearModel
-from sklearn.model_selection import train_test_split
-
+from skorch.helper import predefined_split
+from resources.classification_model.BasicDataLoader import CustomDataset
+from resources.sql.sql_contronler import *
+from skorch.callbacks import Checkpoint,EarlyStopping,EpochScoring
+from resources.utility import valid_accuracy
+from skorch import NeuralNetRegressor
 
 loss_fn_map  ={
     "CrossEntropyLoss": nn.CrossEntropyLoss
 }
-def train_model_one_epoch(model, device, dataloader, loss_fn, optim, epoch, column_size=64):
-    model.train().to(device)
-    cur_column = 0
-    for i, (x, target) in enumerate(dataloader):
-        cur_column += x.shape[0]
-        x = x.to(device)
-        target = target.to(device)
-        predict = model(x)
-        loss = loss_fn(predict, target)
-        loss.backward()
-        print(f"Current loss at iter {i+1} of epoch {epoch}: {loss.item()}")
-        if cur_column >= column_size:
-            optim.step()
-            optim.zero_grad()
-            cur_column = 0  
-    return model
-def init_and_train_model_from_scatch_pipeline(data,
-                                              num_class,
-                                              feature_dims,
-                                              dropout,
-                                              device,
-                                              max_epochs,
-                                              batch_size,
-                                              test_size = 0.2,
-                                              loss_type = "CrossEntropyLoss" ,
-                                              caculumn_size = 64):
-    x,y = data
-    X_train,X_test,Y_train,Y_test = train_test_split(x,y,test_size=test_size)
-    
-    
-    model = BasicLinearModel(num_class=num_class,feature_dims=feature_dims,dropout=dropout)
-    optim = torch.optim.Adam(model.parameters(),lr = 0.001,weight_decay= 0.0000001)
-    train_dataloader = get_dataloader(num_class = num_class,data=(X_train,Y_train),batch_size=batch_size)
-    test_dataloader = get_dataloader(num_class=num_class,data=(X_test,Y_test),batch_size=batch_size)
-    loss_fn =  loss_fn_map[loss_type]()
-    for i in range(max_epochs):
-        # model = train_model_one_epoch(model = model,
-        #                        device = device,
-        #                        dataloader=train_dataloader,
-        #                        loss_fn=loss,
-        #                        epoch=i,
-        #                        column_size=caculumn_size,
-        #                        optim=optim)
-        cur_column = 0 
-        for iter, (x, target) in enumerate(train_dataloader):
-            cur_column += x.shape[0]
-            x = x.to(device)
-            target = target.to(device)
-            predict = model(x)
-            loss = loss_fn(predict, target)
-            loss.backward()
+cross_entropy_loss = nn.CrossEntropyLoss() 
+class loss_fn(nn.Module):
+        def forward(self,y_pred,y_target):
+            return cross_entropy_loss(y_pred,y_target)
+def get_predict(net,feature):
+        feature = torch.tensor(feature).float()
+        if len(feature.shape)==1:
+            feature = torch.tensor(feature).unsqueeze(0)
+            
+        proba,indices = torch.softmax(torch.tensor(net.predict(feature)),dim = 1).max(1)
+        return proba[0].item(),indices[0].item()
+def get_classifier_model(num_class,
+                            feature_dims  = [128,256],
+                            dropout = [0.3,0.4],
+                            lr = 0.001,
+                            batch_size = 60,
+                            max_epochs = 500,
+                            mode = "train",
+                            valid_dataset = None,
+                            pretrained = None,
+                            loss_fn_name = "CrossEntropyLoss",
+                            device = "cpu"):
+        model = BasicLinearModel(
+            feature_dims=feature_dims,
+            dropout=dropout,
+            num_class=num_class
+        )
 
-            print(f"Current loss at iter {iter+1} of epoch {i+1}: {loss.item()}")
-            if cur_column >= caculumn_size:
-                optim.step()
-                optim.zero_grad()
-                cur_column = 0  
-        
+        if mode  == "train":
+            net = NeuralNetRegressor(
+                module = model,
+                lr = lr,
+                optimizer = torch.optim.Adam,
+                optimizer__weight_decay = 0.00005,
+                batch_size = batch_size,
+                criterion = loss_fn,
+                max_epochs = max_epochs,
+                train_split = predefined_split(valid_dataset),
+                callbacks = [
+                    EarlyStopping(patience = 13),
+                    EpochScoring(valid_accuracy),
+                    Checkpoint(load_best = True,dirname = "train_model")
+                ]
+            )
+            if pretrained:
+                net.initialize() 
+                net.load_params(f_params = pretrained)
+        else:
+            net = NeuralNetRegressor(
+                module = model,
+                lr = lr,
+                optimizer = torch.optim.Adam,
+                optimizer__weight_decay = 0.00005,
+                batch_size = batch_size,
+                criterion = loss_fn,
+                max_epochs = max_epochs,
+            )
+            if pretrained:
+                net.initialize() 
+                net.load_params(f_params = pretrained)
+                net.trim_for_prediction()
+            else:
+                 raise EOFError
+           
+        return net
+   
+
+def init_and_train_model_from_scatch_pipeline(
+                                              feature_dims = [128,256],
+                                              dropout=  [0.3,0.4],
+                                              device = "cpu",
+                                              max_epochs = 50,
+                                              batch_size = 64,
+                                             ):
     
-    
-    
+    num_class=get_max_id()[0]+1
+    encode ,label,_ = get_all_features_and_labels()
+    valid_dataset = CustomDataset((encode,label),mode = "valid",num_class=num_class)
+    train_dataset = CustomDataset((encode,label),mode = "train",num_class=num_class)
+    net = get_classifier_model(num_class=num_class,
+                               valid_dataset=valid_dataset,
+                               mode="train",
+                               batch_size=batch_size,
+                               max_epochs=max_epochs,
+                               feature_dims=feature_dims,
+                               dropout=dropout,
+                               device=device
+                               )
+    net.fit(train_dataset,None)
+if __name__ == "__main__":
+    init_and_train_model_from_scatch_pipeline(max_epochs=1000)
+        
+
+
+            
+
         
         
         
-        
+            
+            
+            
+            

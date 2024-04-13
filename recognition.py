@@ -12,7 +12,7 @@ import dlib
 import gc
 import threading
 import time
-from test_function import *
+from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline,get_predict
 
 landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
 feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
@@ -27,10 +27,10 @@ class Recognition:
            print("Use autofaiss")
            self.type_classifier = "autofaiss_distance"
            self.auto_faiss_setup()
-       if config['classifier']['use']:
-           print("Use deep learning classifier")
-           from resources.classification_model.train_pipeline import init_and_train_model_from_scatch_pipeline
+       if config['classifier']['retrain']:
+           print("Retrain deep learning classifier")
            self.train()
+           
     def auto_faiss_setup(self):
         faiss_config = config["autofaiss"]
         save_folder = faiss_config['root_folder']
@@ -64,8 +64,7 @@ class Recognition:
         #1,feature_dims
         feature = np.expand_dims(self.extract_feature(frame,face),axis = 0)
     
-        distances, indices = self.my_index.search(feature, 200)
-        print(distances)
+        distances, indices = self.my_index.search(feature, 3)
         count = self.get_best(distances=distances,indices=indices,feature=feature)
         if not len(count):
             return "unknow",face
@@ -127,8 +126,6 @@ class Recognition:
         device = "cuda" if torch.cuda.is_available() else "cpu"
         max_epochs = train_config['max_epochs']
         batch_size = train_config['batch_size']
-        return 
-
 
 import time
 

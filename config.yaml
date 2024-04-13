@@ -14,7 +14,7 @@ face_data_path: data.pkl
 data:
   #from_image,from sql
   load_data_type: from_sql
-  data_path: D:/download/DataBase/DataBase
+  data_path: D:/download/KUB
   cache: resources/face_encode_data/dlib.pkl
   save_data: 
     save_type: pkl
@@ -27,9 +27,9 @@ autofaiss:
 
 classifier:
   # set False to set off the deep learning classifier
-  use: False
+  retrain: False
   net:
-    feature_dims: [128,256,128]
+    feature_dims: [128,256]
     dropout: [0.1,0.1]
   max_epochs: 20
   batch_size: 8

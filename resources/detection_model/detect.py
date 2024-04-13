@@ -5,8 +5,8 @@ import numpy as np
 from mtcnn import MTCNN
 class Detection:
     def __init__(self):
-        caffemodel = r"resources\detection_model\Widerface-RetinaFace.caffemodel"
-        deploy = r"resources\detection_model\deploy.prototxt"
+        caffemodel = r"resources/detection_model/Widerface-RetinaFace.caffemodel"
+        deploy = r"resources/detection_model/deploy.prototxt"
         self.detector = cv2.dnn.readNetFromCaffe(deploy, caffemodel)
         self.detector_confidence = 0.6
 

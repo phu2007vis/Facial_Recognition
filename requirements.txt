@@ -6,4 +6,7 @@ lapx>=0.5.2
 gdown
 img64
 skorch
+mtcnn
+img64
+tensorflow
 -e .

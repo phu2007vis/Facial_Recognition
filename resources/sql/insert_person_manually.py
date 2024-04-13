@@ -10,7 +10,8 @@ import cv2
 recog = Recognition()
 
 
-
+file_already_cropped = True
+print(f"File is already cropped: {file_already_cropped}")
 
 permision = input("Xac nhan them nguoi moi(y/n): ")
 if "n" in permision:
@@ -19,13 +20,14 @@ if "n" in permision:
 if "y" not in permision:
     print("y not in your anser -> exit")
     exit()
-max_id,check = get_max_id()
-if  check:
-    print("SQL error")
-    exit()
-begin_index = 27
+# max_id,check = get_max_id()
+# if  check:
+#     print("SQL error")
+#     exit()
+begin_index =  62
 with open("logfile.txt",'a+') as f:
     f.write(f"Insert new faces from new id {begin_index} ")
+
 
 input_folder = os.path.join(config['data']['data_path'],"*")
 for i,path_dir in enumerate(glob.glob(input_folder)):
@@ -50,8 +52,10 @@ for i,path_dir in enumerate(glob.glob(os.path.join(config['data']['data_path'],"
     for image_index,image_path in enumerate(glob.glob(os.path.join(path_dir , "*"))):
         print(f"loading file: {image_path}")
         image  = cv2.imread(image_path)
-     
-        box  = face_detect(image)[0]
+        if file_already_cropped:
+            box = [0,0,image.shape[1],image.shape[0]]   
+        else:    
+            box  = face_detect(image)[0]
         if not check_box(box):
             box = mtcnn_face_detect(image)[0]
         if not check_box(box):

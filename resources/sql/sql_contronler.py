@@ -154,4 +154,4 @@ def delete_check_in_by_id(id):
         return [e]
     
 if __name__ == "__main__":
-    delete_check_in_by_id(1)
+    remove_person_by_id(5)
