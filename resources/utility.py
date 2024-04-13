@@ -138,3 +138,26 @@ def rename_folder(folder_path):
             dir_name = os.path.dirname(path_dir)
             new_name = os.path.join(dir_name,base_name)
             os.rename(path_dir,new_name)
+
+
+def cosine_similarity(vector1, vector2):
+    """
+    Compute cosine similarity between two vectors.
+
+    Parameters:
+    vector1 (numpy.ndarray): First vector.
+    vector2 (numpy.ndarray): Second vector.
+
+    Returns:
+    float: Cosine similarity between the two vectors.
+    """
+    vector1 = vector1.squeeze()
+    vector2 = vector2.squeeze()
+    dot_product = np.dot(vector1, vector2)
+    norm_vector1 = np.linalg.norm(vector1)
+    norm_vector2 = np.linalg.norm(vector2)
+    return dot_product / (norm_vector1 * norm_vector2)
+
+   
+
+    

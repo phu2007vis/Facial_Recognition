@@ -64,23 +64,24 @@ class Recognition:
         #1,feature_dims
         feature = np.expand_dims(self.extract_feature(frame,face),axis = 0)
     
-        if self.type_classifier == "autofaiss_distance":
-            
-            distances, indices = self.my_index.search(feature, self.threshsold)
-            count = self.get_best(distances=distances,indices=indices)
-            if not len(count):
-                return "unknow",face
-            id =  count.most_common(1)[0][0]
-            result = [self.get_name(id),face]
-        else:
-            proba,id = get_predict(feature)
-            print(proba)
-            result = [self.get_name(id),face]
+        distances, indices = self.my_index.search(feature, 200)
+        print(distances)
+        count = self.get_best(distances=distances,indices=indices,feature=feature)
+        if not len(count):
+            return "unknow",face
+        id_from_euclit_distance =  count.most_common(1)[0][0]
+        proba,id_from_neural_net = get_predict(feature)
+        if id_from_euclit_distance != id_from_neural_net:
+            return "unknow",face
+        
+    
+        result = [self.get_name(id_from_euclit_distance),face]
         if return_id:
             result.append(id)
         return  result
     
-    def get_best(self,distances,indices):
+    def get_best(self,distances,indices,feature = None):
+  
         ids = [self.id[label] for i,label in enumerate(indices[0]) if distances[0][i] <config['face_recognition']['threshold']]
         name_counts = collections.Counter(ids)
         return name_counts
@@ -158,11 +159,11 @@ def capture_and_process(recog):
     cam = cv2.VideoCapture(0)
     while True:
         ret, frame = cam.read()
-        name, box, id = recog.recognition(frame, return_id=True)
+        name, box= recog.recognition(frame)
 
         current_time = get_time()  # Assuming get_time() is defined elsewhere
-        if not check_in_queue or check_check_in(check_in_queue[-1], (id, current_time, str(time.time()))):
-            check_in_queue.append((id, current_time, str(time.time())))
+        # if not check_in_queue or check_check_in(check_in_queue[-1], (id, current_time, str(time.time()))):
+        #     check_in_queue.append((id, current_time, str(time.time())))
         if box and check_box(box):
             color = (0, 255, 0)
             if name == "unknown":
@@ -173,7 +174,7 @@ def capture_and_process(recog):
             color = (0, 0, 255)
             if name_real_or_fake[label] == "real":
                 color = (0, 255, 0)
-            frame = put_text(frame, name_real_or_fake[label], y=50, color=color)  # Assuming name_real_or_fake is defined elsewhere
+            frame = put_text(frame, name_real_or_fake[label], y=50, color=color) 
         cv2.imshow("frame", frame)
         if cv2.waitKey(8) == ord("q"):
             break

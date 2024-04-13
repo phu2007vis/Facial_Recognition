@@ -6,8 +6,9 @@ video_stream:
 type_recognition: dlib
 
 face_recognition:
-  face_distance: euclit
-  threshold: 0.24
+  #cosine_similar or euclit
+  face_distance: cosine_similar
+  threshold: 0.5
 face_data_path: data.pkl
 
 data:
