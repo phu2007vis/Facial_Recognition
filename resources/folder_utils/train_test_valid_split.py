@@ -8,7 +8,7 @@ def read_train_valid_test_annotation(file_split):
         data = [line.strip().split(" ") for line in f.readlines()]
     for value in data:
         file_name , fold = value
-        map_fold[file_name] = fold
+        map_fold[file_name] = int(fold)
     return map_fold
 
 def train_test_split_with_annotation(root_folder, annotation_file, output_folder):
