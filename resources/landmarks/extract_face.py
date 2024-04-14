@@ -8,8 +8,9 @@ import skimage
 from resources.utility import check_box,get_annotation_map
 import face_alignment
 import torch
-
+from resources.folder_utils.utils import count_file
 from PIL import Image
+from tqdm import tqdm
 
 landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
 feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
@@ -60,14 +61,14 @@ def pad_image(image, padding=70):
     padded_image.paste(image, (0, 0))
     return np.asarray(padded_image)
 
-def extract_face_from_image(image,image_size = 224,type_landmakrs = "dlib",bboxes = None):
+def extract_face_from_image(image,image_size = 224,type_landmakrs = "dlib"):
     image = pad_image(image,20)
-    if not bboxes :
-        bboxes = face_detect(image)
+    
+    bboxes = face_detect(image)
+    if not check_box(bboxes[0]):
+        bboxes = mtcnn_face_detect(image)
         if not check_box(bboxes[0]):
-            bboxes = mtcnn_face_detect(image)
-            if not check_box(bboxes[0]):
-                return None
+            return None
     x1,y1,x2,y2 = bboxes[0]
     landmarks = extract_landmarks(image,bboxes,type=type_landmakrs,return_dlib_all=True)
     outline = landmarks[[*range(17), *range(26,16,-1)]]
@@ -78,30 +79,28 @@ def extract_face_from_image(image,image_size = 224,type_landmakrs = "dlib",bboxe
     cropped_img = cropped_img[y1:y2,x1:x2,:]
     cropped_img = cv2.resize(cropped_img,(image_size,image_size))
     return cropped_img
-def extrace_face(input_folder,output_folder,image_size = 224,type_landmarks = "dlib",annotation_path = None):
-    # if annotation_path:
-    #     print("Reading map annotation bboxes")
-    #     annotation_map = get_annotation_map(annotation_path)
-    annotation_map = None
+def extrace_face(input_folder,output_folder,image_size = 224,type_landmarks = "dlib",logfile = "log.txt"):
+    processing_bar = tqdm(range(count_file(input_folder)))
     for person_name in os.listdir(input_folder):
         sub_output_folder = os.path.join(output_folder,person_name)
         sub_input_folder = os.path.join(input_folder,person_name)
         
         os.makedirs(sub_output_folder,exist_ok=True)
         for file_name in os.listdir(sub_input_folder):
+            processing_bar.update(1)
             file_path = osp.join(sub_input_folder,file_name)
             image = cv2.imread(file_path)
-            bboxes = None
-            if annotation_map:
-                # [[x1,y1,x2,y2]]
-                bboxes = [annotation_map.get(file_name,None)]
-            cropped_img = extract_face_from_image(image,image_size,type_landmarks,bboxes=bboxes)
+           
+        
+            cropped_img = extract_face_from_image(image,image_size,type_landmarks)
             if cropped_img is None:
-                print(f"Important {file_path} can not extract face please veritify this face ! ")
+                with open(logfile, "a+") as f:
+                    f.write(f"Important {file_path} can not extract face please veritify this face ! \n")
                 continue
             output_file = osp.join(sub_output_folder,file_name)
             cv2.imwrite(output_file,cropped_img)
 
+        
             
 
 
