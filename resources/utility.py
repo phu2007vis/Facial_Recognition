@@ -157,6 +157,20 @@ def cosine_similarity(vector1, vector2):
     norm_vector1 = np.linalg.norm(vector1)
     norm_vector2 = np.linalg.norm(vector2)
     return dot_product / (norm_vector1 * norm_vector2)
+def get_annotation_map(file_path):
+    
+    with open(file_path,"r") as f:
+        f.readline()  # Skip the header
+        data = [line.strip().split(" ") for line in f.readlines()]
+
+    annotation_map = {}
+    for line in data:
+        file_name = line.pop(0)
+        line = [int(value.replace(" ","")) for value in line if value.replace(" ","") != ""]
+        assert(len(line)==4)
+        annotation_map[file_name] = line
+    return annotation_map
+
 
    
 

@@ -9,4 +9,5 @@ skorch
 mtcnn
 img64
 tensorflow
+skorch
 -e .
