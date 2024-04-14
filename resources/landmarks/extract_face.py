@@ -12,8 +12,8 @@ from resources.folder_utils.utils import count_file
 from PIL import Image
 from tqdm import tqdm
 
-landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
-feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
+# landmark_detector = dlib.shape_predictor(r"resources/dlib/shape_predictor_68_face_landmarks.dat")
+# feature_extractor = dlib.face_recognition_model_v1(r"resources/dlib/dlib_face_recognition_resnet_model_v1.dat")
 
 device =  "cuda" if torch.cuda.is_available() else "cpu"
 fa = face_alignment.FaceAlignment(face_alignment.LandmarksType.TWO_D, flip_input=False,device = device)
@@ -86,6 +86,8 @@ def extrace_face(input_folder,output_folder,image_size = 224,type_landmarks = "d
         sub_input_folder = os.path.join(input_folder,person_name)
         
         os.makedirs(sub_output_folder,exist_ok=True)
+        if len(os.listdir(sub_input_folder))==0:
+            print(f"{input_folder} is empty")
         for file_name in os.listdir(sub_input_folder):
             processing_bar.update(1)
             file_path = osp.join(sub_input_folder,file_name)
