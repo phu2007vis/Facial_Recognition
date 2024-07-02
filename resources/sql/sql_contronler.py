@@ -9,7 +9,7 @@ from resources.utility import image_to_base64,base64_to_image
 with open("config.yaml","r") as f:
     sql_config = yaml.safe_load(f)['sql']
 
-enpoint  = sql_config['endpoint'].replace("haha",".rds.amazonaws.com").replace("***","chi4uk6maopa").replace("---","database-2")
+enpoint  = "database-1.cn1puzv8rxhl.us-east-1.rds.amazonaws.com"
 user = sql_config['user']
 password = sql_config['password']
 database = sql_config['database']
