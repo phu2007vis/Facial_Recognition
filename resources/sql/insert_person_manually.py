@@ -10,7 +10,7 @@ import cv2
 recog = Recognition()
 
 
-file_already_cropped = True
+file_already_cropped = False
 print(f"File is already cropped: {file_already_cropped}")
 
 permision = input("Xac nhan them nguoi moi(y/n): ")
@@ -24,7 +24,7 @@ if "y" not in permision:
 # if  check:
 #     print("SQL error")
 #     exit()
-begin_index =  62
+begin_index =  0
 with open("logfile.txt",'a+') as f:
     f.write(f"Insert new faces from new id {begin_index} ")
 
